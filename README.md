@@ -28,12 +28,21 @@ Production-ready FastAPI backend with PostgreSQL for user and device management.
 
 ### Devices
 - `GET /api/v1/devices` - List devices with pagination, filtering, and search
-  - Query params: `page`, `page_size`, `compliant`, `owner_cid`, `query`
+  - Query params: `page`, `page_size`, `compliant`, `owner_cid`, `status`, `vlan`, `tag`, `query`
 - `GET /api/v1/devices/{device_id}` - Get detailed device information
 - `PUT /api/v1/devices/{device_id}` - Update device (rename, change compliance, reassign owner)
 - `DELETE /api/v1/devices/{device_id}` - Delete device
 - `GET /api/v1/devices/non-compliant/summary` - Get compliance summary by user
+
+#### Device Summary Endpoints (Dashboard Analytics)
 - `GET /api/v1/devices/summary/counts` - Get device count summary (total, MDM, BYOD)
+- `GET /api/v1/devices/summary/by-status` - Device breakdown by connection status
+- `GET /api/v1/devices/summary/compliance` - Compliance breakdown with percentages
+- `GET /api/v1/devices/summary/by-tag` - Device distribution by tags (remote, on-site, etc.)
+- `GET /api/v1/devices/summary/by-vlan` - Device distribution by VLAN
+- `GET /api/v1/devices/summary/recent-activity` - Recent activity summary (24h, 7d, 30d)
+- `GET /api/v1/devices/summary/by-os` - Device breakdown by operating system
+- `GET /api/v1/devices/summary/risk-analysis` - Risk analysis combining multiple factors
 
 ### API Management
 - `GET /api/v1/apis` - List API connections with filtering and search

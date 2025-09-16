@@ -300,3 +300,214 @@ def get_device_counts_summary(
         "mdm_devices": mdm_devices,
         "byod_devices": byod_devices
     }
+
+
+@router.get("/summary/by-status")
+def get_device_status_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count breakdown by connection status.
+    
+    **Frontend Integration Notes:**
+    - Use this for status distribution charts/widgets
+    - Shows connected vs disconnected vs unknown devices
+    - Useful for network monitoring dashboards
+    """
+    status_counts = (
+        db.query(Device.status, func.count(Device.id))
+        .group_by(Device.status)
+        .all()
+    )
+    
+    result = {status.value: 0 for status in DeviceStatusEnum}
+    for status, count in status_counts:
+        if status:
+            result[status.value] = count
+    
+    return result
+
+
+@router.get("/summary/compliance")
+def get_device_compliance_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device compliance breakdown with percentages.
+    
+    **Frontend Integration Notes:**
+    - Use this for compliance dashboards and charts
+    - Returns counts and percentages for compliant vs non-compliant
+    - Useful for executive reporting and compliance metrics
+    """
+    total_devices = db.query(Device).count()
+    compliant_devices = db.query(Device).filter(Device.compliant == True).count()
+    non_compliant_devices = total_devices - compliant_devices
+    
+    compliant_percentage = round((compliant_devices / total_devices * 100), 2) if total_devices > 0 else 0
+    non_compliant_percentage = round((non_compliant_devices / total_devices * 100), 2) if total_devices > 0 else 0
+    
+    return {
+        "total_devices": total_devices,
+        "compliant_devices": compliant_devices,
+        "non_compliant_devices": non_compliant_devices,
+        "compliant_percentage": compliant_percentage,
+        "non_compliant_percentage": non_compliant_percentage
+    }
+
+
+@router.get("/summary/by-tag")
+def get_device_tag_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count breakdown by tags.
+    
+    **Frontend Integration Notes:**
+    - Use this for tag distribution charts
+    - Shows how devices are distributed across different categories
+    - Useful for organizational insights (remote vs on-site, exec vs regular, etc.)
+    """
+    tag_counts = (
+        db.query(DeviceTag.tag, func.count(DeviceTag.device_id))
+        .group_by(DeviceTag.tag)
+        .all()
+    )
+    
+    result = {tag.value: 0 for tag in DeviceTagEnum}
+    for tag, count in tag_counts:
+        if tag:
+            result[tag.value] = count
+    
+    return result
+
+
+@router.get("/summary/by-vlan")
+def get_device_vlan_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count breakdown by VLAN.
+    
+    **Frontend Integration Notes:**
+    - Use this for network segmentation analysis
+    - Shows device distribution across VLANs
+    - Useful for network security and planning dashboards
+    """
+    vlan_counts = (
+        db.query(Device.vlan, func.count(Device.id))
+        .filter(Device.vlan.isnot(None))
+        .group_by(Device.vlan)
+        .all()
+    )
+    
+    return {vlan: count for vlan, count in vlan_counts}
+
+
+@router.get("/summary/recent-activity")
+def get_device_recent_activity_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get summary of recent device activity (last 24 hours, 7 days, 30 days).
+    
+    **Frontend Integration Notes:**
+    - Use this for device activity monitoring
+    - Shows devices that have checked in recently vs stale devices
+    - Useful for identifying potentially lost or inactive devices
+    """
+    from datetime import datetime, timedelta
+    
+    now = datetime.now()
+    last_24h = now - timedelta(hours=24)
+    last_7d = now - timedelta(days=7)
+    last_30d = now - timedelta(days=30)
+    
+    devices_24h = db.query(Device).filter(Device.last_check_in >= last_24h).count()
+    devices_7d = db.query(Device).filter(Device.last_check_in >= last_7d).count()
+    devices_30d = db.query(Device).filter(Device.last_check_in >= last_30d).count()
+    total_devices = db.query(Device).count()
+    stale_devices = total_devices - devices_30d
+    
+    return {
+        "last_24_hours": devices_24h,
+        "last_7_days": devices_7d,
+        "last_30_days": devices_30d,
+        "stale_devices": stale_devices,
+        "total_devices": total_devices
+    }
+
+
+@router.get("/summary/by-os")
+def get_device_os_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count breakdown by operating system.
+    
+    **Frontend Integration Notes:**
+    - Use this for OS distribution analysis
+    - Shows which operating systems are most common
+    - Useful for patch management and security planning
+    """
+    os_counts = (
+        db.query(Device.os_version, func.count(Device.id))
+        .filter(Device.os_version.isnot(None))
+        .group_by(Device.os_version)
+        .all()
+    )
+    
+    return {os_version: count for os_version, count in os_counts}
+
+
+@router.get("/summary/risk-analysis")
+def get_device_risk_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device risk analysis summary combining multiple factors.
+    
+    **Frontend Integration Notes:**
+    - Use this for security dashboards and risk assessment
+    - Combines compliance, connectivity, and activity data
+    - Useful for identifying high-risk devices and users
+    """
+    from datetime import datetime, timedelta
+    
+    now = datetime.now()
+    last_7d = now - timedelta(days=7)
+    
+    # Non-compliant devices
+    non_compliant = db.query(Device).filter(Device.compliant == False).count()
+    
+    # Disconnected devices
+    disconnected = db.query(Device).filter(Device.status == DeviceStatusEnum.DISCONNECTED).count()
+    
+    # Stale devices (no check-in in 7 days)
+    stale = db.query(Device).filter(Device.last_check_in < last_7d).count()
+    
+    # High-risk devices (non-compliant AND disconnected)
+    high_risk = (
+        db.query(Device)
+        .filter(Device.compliant == False)
+        .filter(Device.status == DeviceStatusEnum.DISCONNECTED)
+        .count()
+    )
+    
+    total_devices = db.query(Device).count()
+    
+    return {
+        "total_devices": total_devices,
+        "non_compliant_devices": non_compliant,
+        "disconnected_devices": disconnected,
+        "stale_devices": stale,
+        "high_risk_devices": high_risk,
+        "risk_score_percentage": round((high_risk / total_devices * 100), 2) if total_devices > 0 else 0
+    }
