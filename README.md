@@ -33,6 +33,7 @@ Production-ready FastAPI backend with PostgreSQL for user and device management.
 - `PUT /api/v1/devices/{device_id}` - Update device (rename, change compliance, reassign owner)
 - `DELETE /api/v1/devices/{device_id}` - Delete device
 - `GET /api/v1/devices/non-compliant/summary` - Get compliance summary by user
+- `GET /api/v1/devices/summary/counts` - Get device count summary (total, MDM, BYOD)
 
 ### API Management
 - `GET /api/v1/apis` - List API connections with filtering and search

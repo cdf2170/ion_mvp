@@ -262,3 +262,41 @@ def get_non_compliant_summary(
         }
         for row in result
     ]
+
+
+@router.get("/summary/counts")
+def get_device_counts_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count summary for dashboard boxes.
+    
+    **Frontend Integration Notes:**
+    - Use this for dashboard widgets showing device statistics
+    - Returns total devices, MDM devices, and BYOD devices counts
+    """
+    # Total devices
+    total_devices = db.query(Device).count()
+    
+    # MDM devices (Corporate tagged devices)
+    mdm_devices = (
+        db.query(Device)
+        .join(DeviceTag)
+        .filter(DeviceTag.tag == DeviceTagEnum.CORPORATE)
+        .count()
+    )
+    
+    # BYOD devices (BYOD tagged devices)
+    byod_devices = (
+        db.query(Device)
+        .join(DeviceTag)
+        .filter(DeviceTag.tag == DeviceTagEnum.BYOD)
+        .count()
+    )
+    
+    return {
+        "total_devices": total_devices,
+        "mdm_devices": mdm_devices,
+        "byod_devices": byod_devices
+    }
