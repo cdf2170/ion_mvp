@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -457,7 +457,7 @@ class ConfigHistoryListResponse(BaseModel):
 class ActivityHistorySchema(BaseModel):
     """
     Activity history schema.
-    
+
     Attributes:
         id: Unique activity record identifier
         user_cid: Canonical ID of the user involved
@@ -472,7 +472,7 @@ class ActivityHistorySchema(BaseModel):
         risk_score: Risk level assessment
     """
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID = Field(..., description="Unique activity record identifier")
     user_cid: Optional[UUID] = Field(None, description="Canonical ID of the user involved")
     device_id: Optional[UUID] = Field(None, description="ID of the device involved")
@@ -484,6 +484,7 @@ class ActivityHistorySchema(BaseModel):
     timestamp: datetime = Field(..., description="When the activity occurred")
     activity_metadata: Optional[str] = Field(None, description="Additional context as JSON string")
     risk_score: Optional[str] = Field(None, description="Risk level assessment")
+    
 
 
 class ActivityHistoryListResponse(BaseModel):

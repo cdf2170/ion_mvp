@@ -129,6 +129,11 @@ def get_activity_history(
     # Apply pagination
     activities = query_filter.offset((page - 1) * page_size).limit(page_size).all()
     
+    # Convert IP addresses to strings for Pydantic serialization
+    for activity in activities:
+        if activity.source_ip:
+            activity.source_ip = str(activity.source_ip)
+    
     # Calculate pagination info
     total_pages = (total + page_size - 1) // page_size
     
