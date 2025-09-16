@@ -322,3 +322,266 @@ def merge_user_identities(
                 f"Transferred {devices_transferred} devices, {accounts_transferred} accounts, "
                 f"and {groups_transferred} group memberships."
     )
+
+
+@router.post("/password-reset", response_model=PasswordResetResult)
+def reset_user_password(
+    request: PasswordResetRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Reset user password across connected systems.
+    
+    **Frontend Integration Notes:**
+    - Use this for helpdesk password reset workflows
+    - Systems list can be empty to reset on all connected systems
+    """
+    # Verify user exists
+    user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == request.user_cid).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Simulate password reset across systems
+    # In production, this would integrate with actual APIs
+    if not request.systems:
+        # Default to common systems if none specified
+        systems_to_reset = ["Okta", "Active Directory", "Google Workspace"]
+    else:
+        systems_to_reset = request.systems
+    
+    # Simulate reset results
+    systems_processed = []
+    systems_failed = []
+    
+    for system in systems_to_reset:
+        # In production, make actual API calls here
+        if system in ["Okta", "Active Directory", "Google Workspace", "Microsoft 365"]:
+            systems_processed.append(system)
+        else:
+            systems_failed.append(system)
+    
+    # Send notification (simulated)
+    notification_sent = request.notification_method in ["email", "both"]
+    
+    return PasswordResetResult(
+        user_cid=request.user_cid,
+        systems_processed=systems_processed,
+        systems_failed=systems_failed,
+        notification_sent=notification_sent,
+        message=f"Password reset initiated for {len(systems_processed)} systems"
+    )
+
+
+@router.post("/sync", response_model=SyncResult)
+def sync_user_data(
+    request: SyncRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Trigger synchronization of user data from external systems.
+    
+    **Frontend Integration Notes:**
+    - Use this to refresh user data from connected APIs
+    - Monitor sync_duration for performance optimization
+    """
+    import time
+    start_time = time.time()
+    
+    # Simulate sync process
+    if not request.systems:
+        systems_to_sync = ["Okta", "Workday", "Active Directory"]
+    else:
+        systems_to_sync = request.systems
+    
+    # Simulate sync results
+    users_updated = 0
+    devices_updated = 0
+    accounts_updated = 0
+    errors = []
+    
+    for system in systems_to_sync:
+        # In production, make actual API calls here
+        if system == "Okta":
+            users_updated += 15
+            accounts_updated += 25
+        elif system == "Workday":
+            users_updated += 8
+        elif system == "Active Directory":
+            users_updated += 12
+            accounts_updated += 18
+        elif system == "CrowdStrike":
+            devices_updated += 5
+        else:
+            errors.append(f"Unknown system: {system}")
+    
+    sync_duration = time.time() - start_time
+    
+    return SyncResult(
+        systems_synced=systems_to_sync,
+        users_updated=users_updated,
+        devices_updated=devices_updated,
+        accounts_updated=accounts_updated,
+        errors=errors,
+        sync_duration=sync_duration,
+        message=f"Sync completed for {len(systems_to_sync)} systems"
+    )
+
+
+@router.post("/advanced-merge", response_model=MergePreviewResult)
+def preview_advanced_merge(
+    request: AdvancedMergeRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Preview advanced identity merge with conflict resolution.
+    
+    **Frontend Integration Notes:**
+    - Use this to show merge conflicts before executing
+    - Review conflicts to guide user through resolution process
+    """
+    # Verify both users exist
+    source_user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == request.source_cid).first()
+    target_user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == request.target_cid).first()
+    
+    if not source_user:
+        raise HTTPException(status_code=404, detail="Source user not found")
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    
+    # Analyze conflicts
+    from backend.app.schemas import MergeConflict
+    conflicts = []
+    
+    # Check for field conflicts
+    if source_user.full_name != target_user.full_name:
+        conflicts.append(MergeConflict(
+            field_name="full_name",
+            source_value=source_user.full_name,
+            target_value=target_user.full_name,
+            recommended_action="Use target value (more recent)"
+        ))
+    
+    if source_user.department != target_user.department:
+        conflicts.append(MergeConflict(
+            field_name="department",
+            source_value=source_user.department,
+            target_value=target_user.department,
+            recommended_action="Use target value (current assignment)"
+        ))
+    
+    if source_user.role != target_user.role:
+        conflicts.append(MergeConflict(
+            field_name="role",
+            source_value=source_user.role,
+            target_value=target_user.role,
+            recommended_action="Use target value (current role)"
+        ))
+    
+    # Count items to transfer
+    devices_to_transfer = len(source_user.devices) if request.merge_devices else 0
+    accounts_to_transfer = len(source_user.accounts) if request.merge_accounts else 0
+    groups_to_transfer = len(source_user.group_memberships) if request.merge_groups else 0
+    
+    # Estimate duration based on data size
+    estimated_duration = 0.5 + (devices_to_transfer * 0.1) + (accounts_to_transfer * 0.05)
+    
+    return MergePreviewResult(
+        source_cid=request.source_cid,
+        target_cid=request.target_cid,
+        conflicts=conflicts,
+        devices_to_transfer=devices_to_transfer,
+        accounts_to_transfer=accounts_to_transfer,
+        groups_to_transfer=groups_to_transfer,
+        estimated_duration=estimated_duration
+    )
+
+
+@router.post("/advanced-merge/execute")
+def execute_advanced_merge(
+    request: AdvancedMergeRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Execute advanced identity merge with the specified conflict resolution.
+    
+    **Frontend Integration Notes:**
+    - Call preview endpoint first to show conflicts to user
+    - Use this after user confirms conflict resolution strategy
+    """
+    # Verify both users exist
+    source_user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == request.source_cid).first()
+    target_user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == request.target_cid).first()
+    
+    if not source_user:
+        raise HTTPException(status_code=404, detail="Source user not found")
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    
+    items_transferred = {
+        "devices": 0,
+        "accounts": 0,
+        "groups": 0
+    }
+    
+    try:
+        # Transfer devices
+        if request.merge_devices:
+            for device in source_user.devices:
+                device.owner_cid = request.target_cid
+                items_transferred["devices"] += 1
+        
+        # Transfer accounts  
+        if request.merge_accounts:
+            for account in source_user.accounts:
+                account.user_cid = request.target_cid
+                items_transferred["accounts"] += 1
+        
+        # Transfer group memberships
+        if request.merge_groups:
+            for membership in source_user.group_memberships:
+                membership.user_cid = request.target_cid
+                items_transferred["groups"] += 1
+        
+        # Apply conflict resolution strategy
+        if request.conflict_resolution == "take_source":
+            target_user.full_name = source_user.full_name
+            target_user.department = source_user.department
+            target_user.role = source_user.role
+            target_user.manager = source_user.manager
+            target_user.location = source_user.location
+        elif request.conflict_resolution == "merge":
+            # For merge strategy, prefer non-null values
+            if source_user.manager and not target_user.manager:
+                target_user.manager = source_user.manager
+            if source_user.location and not target_user.location:
+                target_user.location = source_user.location
+        # For "take_target", no action needed
+        
+        # Preserve history if requested
+        if request.preserve_history:
+            # In production, you might copy activity history records
+            pass
+        
+        # Mark source user as inactive instead of deleting
+        source_user.status = StatusEnum.DISABLED
+        
+        db.commit()
+        
+        return {
+            "message": "Advanced merge completed successfully",
+            "source_cid": request.source_cid,
+            "target_cid": request.target_cid,
+            "items_transferred": items_transferred,
+            "conflict_resolution_applied": request.conflict_resolution
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Merge failed: {str(e)}"
+        )

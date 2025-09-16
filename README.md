@@ -21,6 +21,10 @@ Production-ready FastAPI backend with PostgreSQL for user and device management.
 - `PUT /api/v1/users/{cid}` - Update user identity information (rename, change dept, etc.)
 - `POST /api/v1/users/merge` - Merge two user identities (consolidate duplicates)
 - `POST /api/v1/users/scan/{cid}` - Simulate compliance scan
+- `POST /api/v1/users/password-reset` - Reset user password across connected systems
+- `POST /api/v1/users/sync` - Trigger synchronization of user data from external systems
+- `POST /api/v1/users/advanced-merge` - Preview advanced identity merge with conflict resolution
+- `POST /api/v1/users/advanced-merge/execute` - Execute advanced identity merge
 
 ### Devices
 - `GET /api/v1/devices` - List devices with pagination, filtering, and search
@@ -42,6 +46,29 @@ Production-ready FastAPI backend with PostgreSQL for user and device management.
 - `GET /api/v1/apis/{connection_id}/logs` - Get sync logs
 - `PUT /api/v1/apis/{connection_id}/tags` - Update connection tags
 - `GET /api/v1/apis/status/summary` - Get API status summary
+
+### Policy Management
+- `GET /api/v1/policies` - List policies with filtering and search
+  - Query params: `page`, `page_size`, `policy_type`, `severity`, `enabled`, `query`
+- `GET /api/v1/policies/{policy_id}` - Get policy details
+- `POST /api/v1/policies` - Create new policy
+- `PUT /api/v1/policies/{policy_id}` - Update policy
+- `DELETE /api/v1/policies/{policy_id}` - Delete policy
+- `POST /api/v1/policies/{policy_id}/enable` - Enable policy
+- `POST /api/v1/policies/{policy_id}/disable` - Disable policy
+- `GET /api/v1/policies/summary/by-type` - Get policy summary by type
+- `GET /api/v1/policies/summary/by-severity` - Get policy summary by severity
+
+### History & Audit
+- `GET /api/v1/history/config` - Get configuration change history
+  - Query params: `page`, `page_size`, `entity_type`, `entity_id`, `change_type`, `changed_by`, `days_back`
+- `GET /api/v1/history/activity` - Get user activity history
+  - Query params: `page`, `page_size`, `user_cid`, `device_id`, `activity_type`, `source_system`, `risk_score`, `days_back`
+- `POST /api/v1/history/activity` - Create new activity record
+- `GET /api/v1/history/activity/summary/by-type` - Get activity summary by type
+- `GET /api/v1/history/activity/summary/by-risk` - Get activity summary by risk score
+- `GET /api/v1/history/config/summary/recent-changes` - Get recent configuration changes summary
+- `GET /api/v1/history/timeline` - Get combined timeline for specific entity
 
 ### System
 - `GET /` - API information
