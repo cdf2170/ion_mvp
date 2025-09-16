@@ -5,11 +5,13 @@ from typing import Optional
 from uuid import UUID
 
 from backend.app.db.session import get_db
-from backend.app.db.models import Device, CanonicalIdentity
+from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum
 from backend.app.schemas import (
     DeviceSchema,
     DeviceListResponse,
-    DeviceUpdateRequest
+    DeviceUpdateRequest,
+    DeviceCreateRequest,
+    DeviceTagRequest
 )
 from backend.app.security.auth import verify_token
 
@@ -23,6 +25,9 @@ def get_devices(
     page_size: int = Query(20, ge=1, le=100, description="Number of items per page"),
     compliant: Optional[bool] = Query(None, description="Filter by compliance status"),
     owner_cid: Optional[UUID] = Query(None, description="Filter by owner's canonical identity"),
+    status: Optional[DeviceStatusEnum] = Query(None, description="Filter by connection status"),
+    vlan: Optional[str] = Query(None, description="Filter by VLAN"),
+    tag: Optional[DeviceTagEnum] = Query(None, description="Filter by tag"),
     query: Optional[str] = Query(None, description="Search in device name"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)

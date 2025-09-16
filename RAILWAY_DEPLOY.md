@@ -34,7 +34,7 @@ railway add postgresql
 railway variables set DEMO_API_TOKEN=demo-token-12345
 
 # Set allowed origins for your frontend
-railway variables set ALLOWED_ORIGINS=https://your-frontend.vercel.app,http://localhost:5173
+railway variables set ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech
 
 # Set production mode
 railway variables set DEBUG=false

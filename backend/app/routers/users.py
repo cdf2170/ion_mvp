@@ -17,7 +17,15 @@ from backend.app.schemas import (
     IdentityUpdateRequest,
     DeviceUpdateRequest,
     DeviceListResponse,
-    DeviceSchema
+    DeviceSchema,
+    PasswordResetRequest,
+    PasswordResetResult,
+    ForceCheckinRequest,
+    ForceCheckinResult,
+    SyncRequest,
+    SyncResult,
+    AdvancedMergeRequest,
+    MergePreviewResult
 )
 from backend.app.security.auth import verify_token
 

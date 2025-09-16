@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config import settings
-from backend.app.routers import users, devices
+from backend.app.routers import users, devices, apis
 
 
 def create_app() -> FastAPI:
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
     # Include routers
     app.include_router(users.router, prefix="/api/v1")
     app.include_router(devices.router, prefix="/api/v1")
+    app.include_router(apis.router, prefix="/api/v1")
     
     @app.get("/")
     async def root():

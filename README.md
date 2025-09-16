@@ -30,6 +30,19 @@ Production-ready FastAPI backend with PostgreSQL for user and device management.
 - `DELETE /api/v1/devices/{device_id}` - Delete device
 - `GET /api/v1/devices/non-compliant/summary` - Get compliance summary by user
 
+### API Management
+- `GET /api/v1/apis` - List API connections with filtering and search
+  - Query params: `page`, `page_size`, `provider`, `status`, `tag`, `sync_enabled`, `query`
+- `GET /api/v1/apis/{connection_id}` - Get API connection details
+- `POST /api/v1/apis` - Create new API connection
+- `PUT /api/v1/apis/{connection_id}` - Update API connection
+- `DELETE /api/v1/apis/{connection_id}` - Delete API connection
+- `POST /api/v1/apis/{connection_id}/test` - Test API connection health
+- `POST /api/v1/apis/{connection_id}/sync` - Trigger manual sync
+- `GET /api/v1/apis/{connection_id}/logs` - Get sync logs
+- `PUT /api/v1/apis/{connection_id}/tags` - Update connection tags
+- `GET /api/v1/apis/status/summary` - Get API status summary
+
 ### System
 - `GET /` - API information
 - `GET /health` - Health check endpoint
