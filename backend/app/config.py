@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     # App
     app_name: str = "MVP Backend"
     debug: bool = True
+    port: int = int(os.getenv("PORT", "8000"))
     
     class Config:
         env_file = ".env"
