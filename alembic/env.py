@@ -32,8 +32,12 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    """Get database URL from settings"""
-    return settings.database_url
+    """Get database URL with Railway compatibility"""
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:password@localhost:5435/mvp_db")
+    # Convert postgresql:// to postgresql+psycopg:// for Railway compatibility
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return db_url
 
 
 def run_migrations_offline() -> None:

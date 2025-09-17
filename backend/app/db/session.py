@@ -1,15 +1,24 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
-from backend.app.config import settings
+import os
 from backend.app.db.models import Base
+
+
+# Handle Railway DATABASE_URL which uses postgresql:// instead of postgresql+psycopg://
+def get_database_url():
+    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:password@localhost:5435/mvp_db")
+    # Convert postgresql:// to postgresql+psycopg:// for Railway compatibility
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return db_url
 
 
 # Create engine
 engine = create_engine(
-    settings.database_url,
+    get_database_url(),
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=settings.debug
+    echo=False
 )
 
 # Create session factory
