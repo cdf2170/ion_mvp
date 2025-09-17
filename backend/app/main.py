@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.config import settings
+import os
 from backend.app.routers import users, devices, apis, policies, history
 
 
@@ -8,19 +8,21 @@ def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
     
     app = FastAPI(
-        title=settings.app_name,
+        title="MVP Backend",
         description="Production-ready FastAPI backend with PostgreSQL",
         version="1.0.0",
-        docs_url="/docs" if settings.debug else None,
-        redoc_url="/redoc" if settings.debug else None,
     )
+    
+    # Parse comma-separated origins from env (no spaces)
+    _allowed = os.getenv("ALLOWED_ORIGINS", "")
+    origins = [o for o in _allowed.split(",") if o]
     
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins,
+        allow_origins=origins if origins else ["*"],  # loosen if needed
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_methods=["*"],
         allow_headers=["*"],
     )
     
@@ -32,11 +34,11 @@ def create_app() -> FastAPI:
     app.include_router(history.router, prefix="/api/v1")
     
     @app.get("/")
-    async def root():
-        return {"message": "MVP Backend API", "version": "1.0.0"}
+    def health():
+        return {"ok": True}
     
     @app.get("/health")
-    async def health_check():
+    def health_check():
         return {"status": "healthy"}
     
     return app
@@ -46,11 +48,4 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "backend.app.main:app",
-        host="0.0.0.0",
-        port=8006,
-        reload=settings.debug
-    )
+# Removed uvicorn.run() - Railway handles this via Procfile
