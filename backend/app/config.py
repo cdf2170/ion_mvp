@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     railway_project_id: str = os.getenv("RAILWAY_PROJECT_ID", "")
     railway_service_id: str = os.getenv("RAILWAY_SERVICE_ID", "")
     
+    # CORS origins - now properly defined as a field
+    allowed_origins: List[str] = []
+    
     class Config:
         env_file = ".env"
         case_sensitive = False
@@ -35,7 +38,7 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Handle CORS origins manually to avoid Pydantic parsing issues
+# Handle CORS origins manually after settings initialization
 allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech")
 settings.allowed_origins = [origin.strip() for origin in allowed_origins_env.split(',') if origin.strip()]
 
