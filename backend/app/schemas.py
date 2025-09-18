@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
@@ -53,6 +53,14 @@ class DeviceSchema(BaseModel):
     last_check_in: datetime = Field(..., description="Last time device checked in")
     status: DeviceStatusEnum = Field(..., description="Connection status")
     tags: List[DeviceTagSchema] = Field(default=[], description="List of device tags")
+    
+    @field_validator('ip_address', mode='before')
+    @classmethod
+    def validate_ip_address(cls, value):
+        """Convert IPv4Address objects to strings"""
+        if value is None:
+            return None
+        return str(value)
 
 
 class GroupMembershipSchema(BaseModel):
