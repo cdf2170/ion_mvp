@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
@@ -65,6 +65,13 @@ except Exception as e:
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
+    
+    # Import verify_token locally to avoid import issues
+    try:
+        from backend.app.security.auth import verify_token
+    except ImportError:
+        def verify_token(token):
+            return token  # Fallback if import fails
     
     app = FastAPI(
         title="MVP Backend",
@@ -209,6 +216,24 @@ def create_app() -> FastAPI:
     def liveness_check():
         """Liveness probe for Railway"""
         return {"status": "alive"}
+    
+    @app.post("/v1/admin/seed-database")  
+    def seed_database_admin(_: str = Depends(verify_token)):
+        """TEMPORARY: Seed Railway database with sample data"""
+        try:
+            # Import seeding function directly
+            from seed_db import seed_database
+            
+            # Run seeding
+            seed_database()
+            
+            return {"message": "Database seeded successfully"}
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Seeding error: {str(e)}"
+            )
     
     return app
 
