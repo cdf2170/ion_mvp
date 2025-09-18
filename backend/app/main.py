@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from backend.app.routers import users, devices, apis, policies, history
+from backend.app.config import settings
 
 
 def create_app() -> FastAPI:
@@ -13,14 +14,10 @@ def create_app() -> FastAPI:
         version="1.0.0",
     )
     
-    # Parse comma-separated origins from env (no spaces)
-    _allowed = os.getenv("ALLOWED_ORIGINS", "")
-    origins = [o for o in _allowed.split(",") if o]
-    
-    # Configure CORS
+    # Configure CORS using centralized settings
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=origins if origins else ["*"],  # loosen if needed
+        allow_origins=settings.allowed_origins if settings.allowed_origins else ["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
