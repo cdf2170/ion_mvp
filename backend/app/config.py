@@ -20,8 +20,21 @@ class Settings(BaseSettings):
     railway_project_id: str = os.getenv("RAILWAY_PROJECT_ID", "")
     railway_service_id: str = os.getenv("RAILWAY_SERVICE_ID", "")
     
-    # CORS origins - now properly defined as a field
-    allowed_origins: List[str] = []
+    # CORS origins - parse manually to avoid Pydantic issues
+    allowed_origins_str: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech")
+    
+    @property
+    def allowed_origins(self) -> List[str]:
+        """Parse allowed origins from string"""
+        if not self.allowed_origins_str:
+            return ["*"]
+        origins = [origin.strip() for origin in self.allowed_origins_str.split(',') if origin.strip()]
+        
+        # In production, remove localhost origins
+        if self.railway_environment == "production":
+            origins = [origin for origin in origins if not origin.startswith("http://localhost")]
+        
+        return origins if origins else ["*"]
     
     class Config:
         env_file = ".env"
@@ -37,13 +50,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-
-# Handle CORS origins manually after settings initialization
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech")
-settings.allowed_origins = [origin.strip() for origin in allowed_origins_env.split(',') if origin.strip()]
-
-# Ensure production CORS origins are properly set for Railway
-if settings.railway_environment == "production":
-    # Add Railway domains and remove localhost origins in production
-    production_origins = [origin for origin in settings.allowed_origins if not origin.startswith("http://localhost")]
-    settings.allowed_origins = production_origins
