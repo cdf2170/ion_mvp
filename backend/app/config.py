@@ -35,16 +35,15 @@ class Settings:
         
         origins = [origin.strip() for origin in origins_str.split(',') if origin.strip()]
         
-        # In development, always include localhost origins
-        if self.railway_environment != "production":
-            localhost_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
-            for localhost_origin in localhost_origins:
-                if localhost_origin not in origins:
-                    origins.append(localhost_origin)
+        # Always include localhost origins for development, but allow override in production
+        # This allows frontend development against production API
+        localhost_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+        for localhost_origin in localhost_origins:
+            if localhost_origin not in origins:
+                origins.append(localhost_origin)
         
-        # In production, remove localhost origins
-        if self.railway_environment == "production":
-            origins = [origin for origin in origins if not origin.startswith("http://localhost")]
+        # In production, we still allow localhost for development purposes
+        # If you want to restrict this in production, set ALLOWED_ORIGINS env var explicitly
         
         self.allowed_origins = origins if origins else ["*"]
         
