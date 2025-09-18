@@ -206,7 +206,7 @@ const response = await fetch('/api/v1/devices/non-compliant/summary', {
 
 ## Quick Start
 
-> **👨‍💻 Frontend Developer?** See [FRONTEND_SETUP.md](FRONTEND_SETUP.md) for a streamlined setup guide!
+> **Frontend Developer?** See [FRONTEND_SETUP.md](FRONTEND_SETUP.md) for a streamlined setup guide!
 
 ### 1. Set up the environment
 

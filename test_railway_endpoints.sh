@@ -68,11 +68,11 @@ test_endpoint() {
             ;;
         401)
             echo -e "Status: ${RED}$status_code UNAUTHORIZED${NC}"
-            echo "❌ Authentication failed - check token"
+            echo "Authentication failed - check token"
             ;;
         404)
             echo -e "Status: ${RED}$status_code NOT FOUND${NC}"
-            echo "❌ Endpoint not found - check deployment"
+            echo "Endpoint not found - check deployment"
             ;;
         422)
             echo -e "Status: ${YELLOW}$status_code VALIDATION ERROR${NC}"
@@ -80,7 +80,7 @@ test_endpoint() {
             ;;
         000)
             echo -e "Status: ${RED}CONNECTION FAILED${NC}"
-            echo "❌ Cannot connect to server"
+            echo "Cannot connect to server"
             ;;
         *)
             echo -e "Status: ${YELLOW}$status_code${NC}"
@@ -117,10 +117,10 @@ test_endpoint "GET" "/api/v1/users" "Users without auth" false
 
 echo "SUMMARY"
 echo "======="
-echo "✅ 200 = Success"
-echo "❌ 401 = Authentication required"
-echo "❌ 404 = Endpoint not found (deployment issue)"
-echo "⚠️  422 = Validation error"
+echo "200 = Success"
+echo "401 = Authentication required"
+echo "404 = Endpoint not found (deployment issue)"
+echo "422 = Validation error"
 echo ""
 echo "Common issues:"
 echo "- 404 on /api/v1/* = Check Railway deployment logs"

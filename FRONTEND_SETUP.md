@@ -32,7 +32,7 @@ python seed_db.py
 python -m backend.app.main
 ```
 
-### 3. API is Ready! 🚀
+### 3. API is Ready!
 - **Base URL:** `http://localhost:8006`
 - **API Docs:** `http://localhost:8006/docs` (interactive Swagger UI)
 - **Health Check:** `http://localhost:8006/health`
@@ -126,11 +126,11 @@ Standard HTTP codes:
 
 ## Perfect for Building...
 
-✅ **User Dashboard** - List/search users with their devices and accounts  
-✅ **Compliance Reports** - Show non-compliant devices by user/department  
-✅ **Identity Management** - Merge duplicates, update user info  
-✅ **Device Management** - Track and update device compliance  
-✅ **Multi-Service View** - See all accounts per user across services  
+**User Dashboard** - List/search users with their devices and accounts  
+**Compliance Reports** - Show non-compliant devices by user/department  
+**Identity Management** - Merge duplicates, update user info  
+**Device Management** - Track and update device compliance  
+**Multi-Service View** - See all accounts per user across services  
 
 The API is production-ready with pagination, filtering, search, and comprehensive error handling. Start building your IAM dashboard right away!
 
