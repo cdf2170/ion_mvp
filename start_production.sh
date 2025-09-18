@@ -19,7 +19,7 @@ echo "✅ Database migrations completed"
 # Check if we should seed the database
 if [ "$SEED_DATABASE" = "true" ]; then
     echo "🌱 Seeding database..."
-    python seed_db.py
+    python3 seed_db.py || python seed_db.py
     echo "✅ Database seeding completed"
 fi
 

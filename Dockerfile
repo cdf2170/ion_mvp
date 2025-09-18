@@ -17,11 +17,6 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Copy application code
 COPY . .
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash app \
-    && chown -R app:app /app
-USER app
-
 # Expose port (Railway uses dynamic $PORT)
 EXPOSE $PORT
 
@@ -29,5 +24,5 @@ EXPOSE $PORT
 HEALTHCHECK --interval=30s --timeout=30s --start-period=10s --retries=5 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Production-ready start command
-CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+# Use the production startup script
+CMD ["./start_production.sh"]
