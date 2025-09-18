@@ -55,6 +55,13 @@ except Exception as e:
     router_import_errors['history'] = str(e)
     routers_available['history'] = None
 
+try:
+    from backend.app.routers import oauth
+    routers_available['oauth'] = oauth
+except Exception as e:
+    router_import_errors['oauth'] = str(e)
+    routers_available['oauth'] = None
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -111,6 +118,12 @@ def create_app() -> FastAPI:
         routers_included.append('history')
     else:
         routers_failed.append('history')
+    
+    if routers_available['oauth']:
+        app.include_router(routers_available['oauth'].router)  # No /v1 prefix for OAuth
+        routers_included.append('oauth')
+    else:
+        routers_failed.append('oauth')
     
     @app.get("/")
     def root():
