@@ -110,7 +110,7 @@ def create_app() -> FastAPI:
     
     @app.get("/")
     def root():
-        return {"message": "MVP Backend API", "status": "running", "version": "1.0.0"}
+        return {"message": "MVP Backend API", "status": "running", "version": "1.0.1", "deployment_test": "force_rebuild"}
     
     @app.get("/health")
     def health_check():
