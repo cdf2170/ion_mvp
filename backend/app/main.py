@@ -129,9 +129,8 @@ def create_app() -> FastAPI:
     def root():
         return {"message": "MVP Backend API", "status": "running", "version": "1.0.1", "deployment_test": "force_rebuild"}
     
-    @app.get("/health")
-    def health_check():
-        """Simple health check endpoint for Railway"""
+    def get_health_data():
+        """Get health check data"""
         import time
         
         health_data = {
@@ -154,6 +153,16 @@ def create_app() -> FastAPI:
             health_data["database"] = f"error: {str(e)[:100]}"
         
         return health_data
+
+    @app.get("/health")
+    def health_check_railway():
+        """Health check endpoint for Railway (legacy)"""
+        return get_health_data()
+    
+    @app.get("/v1/health")
+    def health_check():
+        """Health check endpoint for frontend (versioned)"""
+        return get_health_data()
     
     @app.get("/debug/routes")
     def debug_routes():
@@ -182,7 +191,7 @@ def create_app() -> FastAPI:
             }
         }
     
-    @app.get("/readiness")
+    @app.get("/v1/readiness")
     def readiness_check():
         """Readiness probe for Railway"""
         from backend.app.db.session import engine
@@ -196,7 +205,7 @@ def create_app() -> FastAPI:
             from fastapi import HTTPException
             raise HTTPException(status_code=503, detail=f"Database not ready: {str(e)}")
     
-    @app.get("/liveness")
+    @app.get("/v1/liveness")
     def liveness_check():
         """Liveness probe for Railway"""
         return {"status": "alive"}

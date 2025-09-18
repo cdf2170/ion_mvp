@@ -10,7 +10,7 @@
 
 ### Production (Railway)
 - **Base URL**: `https://api.privion.tech`
-- **Health Check**: `https://api.privion.tech/health`
+- **Health Check**: `https://api.privion.tech/v1/health`
 - **Users**: `https://api.privion.tech/v1/users`
 - **Devices**: `https://api.privion.tech/v1/devices`
 - **API Management**: `https://api.privion.tech/v1/apis`
@@ -19,7 +19,7 @@
 
 ### Local Development
 - **Base URL**: `http://localhost:8000`
-- **Health Check**: `http://localhost:8000/health`
+- **Health Check**: `http://localhost:8000/v1/health`
 - **Users**: `http://localhost:8000/v1/users`
 - **Devices**: `http://localhost:8000/v1/devices`
 - **API Management**: `http://localhost:8000/v1/apis`
@@ -28,7 +28,7 @@
 
 ## 🔐 Authentication
 
-All endpoints (except `/health` and `/`) require Bearer token authentication:
+All endpoints (except `/v1/health` and `/`) require Bearer token authentication:
 
 ```bash
 curl -H "Authorization: Bearer demo-token-12345" https://api.privion.tech/v1/users
@@ -78,7 +78,7 @@ The changes are ready to deploy to Railway. The Railway configuration in `railwa
 
 ```bash
 # Test health endpoint
-curl https://api.privion.tech/health
+curl https://api.privion.tech/v1/health
 
 # Test users endpoint with auth
 curl -H "Authorization: Bearer demo-token-12345" https://api.privion.tech/v1/users
