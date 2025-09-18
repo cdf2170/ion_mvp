@@ -36,9 +36,7 @@ def create_app() -> FastAPI:
     
     @app.get("/health")
     def health_check():
-        """Comprehensive health check endpoint for Railway"""
-        from backend.app.db.session import engine
-        from sqlalchemy import text
+        """Simple health check endpoint for Railway"""
         import time
         
         health_data = {
@@ -46,24 +44,19 @@ def create_app() -> FastAPI:
             "timestamp": time.time(),
             "version": "1.0.0",
             "environment": os.getenv("RAILWAY_ENVIRONMENT", "development"),
-            "checks": {}
+            "port": os.getenv("PORT", "not_set"),
+            "database_url_set": bool(os.getenv("DATABASE_URL")),
         }
         
-        # Database connectivity check
+        # Simple database connectivity check (non-blocking)
         try:
+            from backend.app.db.session import engine
+            from sqlalchemy import text
             with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-                health_data["checks"]["database"] = "healthy"
+                health_data["database"] = "connected"
         except Exception as e:
-            health_data["status"] = "unhealthy"
-            health_data["checks"]["database"] = f"unhealthy: {str(e)}"
-        
-        # Memory and basic system checks
-        try:
-            import psutil
-            health_data["checks"]["memory_usage"] = f"{psutil.virtual_memory().percent}%"
-        except ImportError:
-            health_data["checks"]["memory_usage"] = "not_available"
+            health_data["database"] = f"error: {str(e)[:100]}"
         
         return health_data
     

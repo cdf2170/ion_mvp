@@ -8,4 +8,4 @@ cmds = ['pip install --no-cache-dir -r requirements.txt']
 cmds = ['echo "Build phase complete"']
 
 [start]
-cmd = 'alembic upgrade head && uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1'
+cmd = 'uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level debug'
