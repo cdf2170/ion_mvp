@@ -4,21 +4,17 @@ import os
 from backend.app.db.models import Base
 
 
-# Handle Railway DATABASE_URL which uses postgresql:// instead of postgresql+psycopg://
-def get_database_url():
-    db_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:password@localhost:5435/mvp_db")
-    # Convert postgresql:// to postgresql+psycopg:// for Railway compatibility
-    if db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    return db_url
+# Import settings
+from backend.app.config import settings
 
-
-# Create engine
+# Create engine using centralized config
 engine = create_engine(
-    get_database_url(),
+    settings.get_database_url(),
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False
+    pool_size=10,
+    max_overflow=20,
+    echo=settings.debug
 )
 
 # Create session factory

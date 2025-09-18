@@ -20,9 +20,11 @@ railway add postgresql
 
 echo "⚙️  Setting environment variables..."
 railway variables set DEMO_API_TOKEN="demo-token-12345"
-railway variables set ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech"
+railway variables set ALLOWED_ORIGINS="https://ion-app-rose.vercel.app,https://app.privion.tech"
 railway variables set DEBUG="false"
 railway variables set APP_NAME="MVP IAM Backend"
+railway variables set RAILWAY_ENVIRONMENT="production"
+railway variables set SEED_DATABASE="true"
 
 echo "📦 Deploying to Railway..."
 railway up

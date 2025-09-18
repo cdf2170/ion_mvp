@@ -34,12 +34,60 @@ def create_app() -> FastAPI:
     app.include_router(history.router, prefix="/api/v1")
     
     @app.get("/")
-    def health():
-        return {"ok": True}
+    def root():
+        return {"message": "MVP Backend API", "status": "running", "version": "1.0.0"}
     
     @app.get("/health")
     def health_check():
-        return {"status": "healthy"}
+        """Comprehensive health check endpoint for Railway"""
+        from backend.app.db.session import engine
+        from sqlalchemy import text
+        import time
+        
+        health_data = {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "version": "1.0.0",
+            "environment": os.getenv("RAILWAY_ENVIRONMENT", "development"),
+            "checks": {}
+        }
+        
+        # Database connectivity check
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                health_data["checks"]["database"] = "healthy"
+        except Exception as e:
+            health_data["status"] = "unhealthy"
+            health_data["checks"]["database"] = f"unhealthy: {str(e)}"
+        
+        # Memory and basic system checks
+        try:
+            import psutil
+            health_data["checks"]["memory_usage"] = f"{psutil.virtual_memory().percent}%"
+        except ImportError:
+            health_data["checks"]["memory_usage"] = "not_available"
+        
+        return health_data
+    
+    @app.get("/readiness")
+    def readiness_check():
+        """Readiness probe for Railway"""
+        from backend.app.db.session import engine
+        from sqlalchemy import text
+        
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return {"status": "ready"}
+        except Exception as e:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail=f"Database not ready: {str(e)}")
+    
+    @app.get("/liveness")
+    def liveness_check():
+        """Liveness probe for Railway"""
+        return {"status": "alive"}
     
     return app
 
