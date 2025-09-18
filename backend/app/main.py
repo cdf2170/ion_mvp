@@ -60,6 +60,29 @@ def create_app() -> FastAPI:
         
         return health_data
     
+    @app.get("/debug/routes")
+    def debug_routes():
+        """Debug endpoint to check what routes are registered"""
+        routes = []
+        for route in app.routes:
+            if hasattr(route, 'path'):
+                routes.append({
+                    "path": route.path,
+                    "methods": getattr(route, 'methods', []),
+                    "name": getattr(route, 'name', 'unknown')
+                })
+        return {
+            "total_routes": len(routes),
+            "routes": routes,
+            "routers_imported": {
+                "users": "users" in str(users),
+                "devices": "devices" in str(devices), 
+                "apis": "apis" in str(apis),
+                "policies": "policies" in str(policies),
+                "history": "history" in str(history)
+            }
+        }
+    
     @app.get("/readiness")
     def readiness_check():
         """Readiness probe for Railway"""

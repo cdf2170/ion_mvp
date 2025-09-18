@@ -2,4 +2,4 @@
 PYTHONPATH = "/app"
 
 [start]
-cmd = 'uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level debug'
+cmd = 'cd /app && PYTHONPATH=/app uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level debug'
