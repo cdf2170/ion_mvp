@@ -30,13 +30,13 @@ def test_endpoint(base_url, endpoint, method="GET"):
         elif method == "POST":
             response = requests.post(url, headers=headers, json={}, timeout=10)
         else:
-            print(f"  ❌ Unsupported method: {method}")
+            print(f"  Unsupported method: {method}")
             return
             
         print(f"  Status: {response.status_code}")
         
         if response.status_code == 200:
-            print(f"  ✅ SUCCESS")
+            print(f"  SUCCESS")
             # Show a preview of the response
             try:
                 data = response.json()
@@ -50,25 +50,25 @@ def test_endpoint(base_url, endpoint, method="GET"):
             except:
                 print(f"     Response: {response.text[:100]}...")
         elif response.status_code == 401:
-            print(f"  ❌ UNAUTHORIZED - Check token")
+            print(f"  UNAUTHORIZED - Check token")
         elif response.status_code == 404:
-            print(f"  ❌ NOT FOUND - Route might not exist")
+            print(f"  NOT FOUND - Route might not exist")
         elif response.status_code == 422:
-            print(f"  ⚠️  VALIDATION ERROR - Check request format")
+            print(f"  VALIDATION ERROR - Check request format")
             try:
                 error_data = response.json()
                 print(f"     Details: {error_data}")
             except:
                 pass
         else:
-            print(f"  ⚠️  Status {response.status_code}: {response.text[:100]}")
+            print(f"  Status {response.status_code}: {response.text[:100]}")
             
     except requests.exceptions.ConnectionError:
-        print(f"  ❌ CONNECTION ERROR - Server not running at {url}")
+        print(f"  CONNECTION ERROR - Server not running at {url}")
     except requests.exceptions.Timeout:
-        print(f"  ❌ TIMEOUT - Server took too long to respond")
+        print(f"  TIMEOUT - Server took too long to respond")
     except Exception as e:
-        print(f"  ❌ ERROR: {e}")
+        print(f"  ERROR: {e}")
 
 def test_without_auth(base_url, endpoint):
     """Test endpoint without authentication (should fail)"""
@@ -79,14 +79,14 @@ def test_without_auth(base_url, endpoint):
         response = requests.get(url, timeout=5)  # No headers
         print(f"  Status: {response.status_code}")
         if response.status_code == 401:
-            print(f"  ✅ Correctly rejected unauthorized request")
+            print(f"  Correctly rejected unauthorized request")
         elif response.status_code == 403:
-            print(f"  ✅ Correctly rejected unauthorized request (403)")
+            print(f"  Correctly rejected unauthorized request (403)")
         else:
-            print(f"  ⚠️  Unexpected response: {response.status_code}")
+            print(f"  Unexpected response: {response.status_code}")
             print(f"     Response: {response.text[:100]}")
     except Exception as e:
-        print(f"  ❌ ERROR: {e}")
+        print(f"  ERROR: {e}")
 
 def main():
     base_url = get_base_url()
@@ -134,9 +134,9 @@ def main():
     
     print("Test Summary:")
     print("=" * 50)
-    print("✅ = Success (200)")
-    print("❌ = Error (401/404/Connection)")
-    print("⚠️  = Warning (Other status)")
+    print("= Success (200)")
+    print("ERROR = Error (401/404/Connection)")
+    print("WARNING = Warning (Other status)")
     print()
     print("If you see 404 errors on /api/v1/* endpoints:")
     print("1. Check that the server is running correctly")
