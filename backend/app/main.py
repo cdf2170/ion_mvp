@@ -66,12 +66,16 @@ def create_app() -> FastAPI:
     )
     
     # Configure CORS using centralized settings
+    cors_origins = settings.allowed_origins if hasattr(settings, 'allowed_origins') and settings.allowed_origins else ["*"]
+    print(f"CORS origins configured: {cors_origins}")  # Debug logging
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins if settings.allowed_origins else ["*"],
+        allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
+        expose_headers=["*"],
     )
     
     # Include routers (only if successfully imported)
@@ -79,31 +83,31 @@ def create_app() -> FastAPI:
     routers_failed = []
     
     if routers_available['users']:
-        app.include_router(routers_available['users'].router, prefix="/api/v1")
+        app.include_router(routers_available['users'].router, prefix="/v1")
         routers_included.append('users')
     else:
         routers_failed.append('users')
     
     if routers_available['devices']:
-        app.include_router(routers_available['devices'].router, prefix="/api/v1")
+        app.include_router(routers_available['devices'].router, prefix="/v1")
         routers_included.append('devices')
     else:
         routers_failed.append('devices')
     
     if routers_available['apis']:
-        app.include_router(routers_available['apis'].router, prefix="/api/v1")
+        app.include_router(routers_available['apis'].router, prefix="/v1")
         routers_included.append('apis')
     else:
         routers_failed.append('apis')
     
     if routers_available['policies']:
-        app.include_router(routers_available['policies'].router, prefix="/api/v1")
+        app.include_router(routers_available['policies'].router, prefix="/v1")
         routers_included.append('policies')
     else:
         routers_failed.append('policies')
     
     if routers_available['history']:
-        app.include_router(routers_available['history'].router, prefix="/api/v1")
+        app.include_router(routers_available['history'].router, prefix="/v1")
         routers_included.append('history')
     else:
         routers_failed.append('history')

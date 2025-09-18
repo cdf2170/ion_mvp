@@ -27,13 +27,20 @@ class Settings:
     
     def _parse_allowed_origins(self):
         """Parse allowed origins from environment variable"""
-        origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech")
+        origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech,https://api.privion.tech")
         
         if not origins_str:
             self.allowed_origins = ["*"]
             return
         
         origins = [origin.strip() for origin in origins_str.split(',') if origin.strip()]
+        
+        # In development, always include localhost origins
+        if self.railway_environment != "production":
+            localhost_origins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:5173"]
+            for localhost_origin in localhost_origins:
+                if localhost_origin not in origins:
+                    origins.append(localhost_origin)
         
         # In production, remove localhost origins
         if self.railway_environment == "production":
