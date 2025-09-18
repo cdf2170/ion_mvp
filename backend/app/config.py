@@ -10,7 +10,7 @@ class Settings:
         self.database_url = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:password@localhost:5435/mvp_db")
         
         # Authentication
-        self.demo_api_token = os.getenv("DEMO_API_TOKEN", "demo-token-12345")
+        self.demo_api_token = os.getenv("DEMO_API_TOKEN", "token 21700")
         
         # App
         self.app_name = os.getenv("APP_NAME", "MVP Backend")

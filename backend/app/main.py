@@ -13,7 +13,7 @@ except Exception as e:
     # Create minimal settings fallback
     class Settings:
         allowed_origins = ["*"]
-        demo_api_token = "demo-token-12345"
+        demo_api_token = "token 21700"
     settings = Settings()
 
 # Try to import routers with error handling
@@ -164,7 +164,7 @@ def create_app() -> FastAPI:
         """Health check endpoint for frontend (versioned)"""
         return get_health_data()
     
-    @app.get("/debug/routes")
+    @app.get("/v1/debug/routes")
     def debug_routes():
         """Debug endpoint to check what routes are registered"""
         routes = []
