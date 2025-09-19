@@ -10,7 +10,7 @@ import time
 from backend.app.db.session import get_db
 from backend.app.db.models import (
     APIConnection, APIConnectionTag, APISyncLog,
-    APIProviderEnum, APIConnectionStatusEnum, APIConnectionTagEnum
+    APIProviderEnum, APIConnectionStatusEnum, APIConnectionTagEnum, Device
 )
 from backend.app.schemas import (
     APIConnectionSchema,
@@ -260,42 +260,40 @@ def trigger_api_sync(
     _: str = Depends(verify_token)
 ):
     """
-    Trigger a manual sync for an API connection.
+    Trigger a manual sync for an API connection using the correlation engine.
     
     **Frontend Integration Notes:**
     - Use this to manually sync data from external systems
-    - Creates a sync log entry
+    - Uses automatic correlation engine to map data to canonical identities
+    - Creates detailed sync log entry with real results
     """
     connection = db.query(APIConnection).filter(APIConnection.id == connection_id).first()
     if not connection:
         raise HTTPException(status_code=404, detail="API connection not found")
     
-    if connection.status != APIConnectionStatusEnum.CONNECTED:
+    # Use the sync orchestrator to perform the actual sync
+    try:
+        from backend.app.services.sync_orchestrator import SyncOrchestrator
+        orchestrator = SyncOrchestrator(db)
+        
+        sync_result = orchestrator.sync_connection(str(connection_id))
+        
+        if sync_result["status"] == "success":
+            return {
+                "message": "Sync completed successfully",
+                "sync_result": sync_result
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Sync failed: {sync_result.get('error', 'Unknown error')}"
+            )
+            
+    except Exception as e:
         raise HTTPException(
-            status_code=400, 
-            detail=f"Cannot sync: connection status is {connection.status.value}"
+            status_code=500,
+            detail=f"Sync failed: {str(e)}"
         )
-    
-    # Create sync log
-    sync_log = APISyncLog(
-        connection_id=connection_id,
-        sync_type=sync_type,
-        status="success",  # TODO: Implement actual sync
-        records_processed="50",
-        records_created="10",
-        records_updated="40",
-        records_failed="0"
-    )
-    
-    db.add(sync_log)
-    
-    # Update connection last sync
-    connection.last_sync = datetime.utcnow()
-    connection.next_sync = datetime.utcnow() + timedelta(minutes=int(connection.sync_interval_minutes))
-    
-    db.commit()
-    
-    return {"message": "Sync triggered successfully", "sync_log_id": sync_log.id}
 
 
 @router.get("/{connection_id}/logs", response_model=APISyncLogListResponse)
@@ -421,3 +419,189 @@ def get_api_status_summary(
         "failed_syncs_24h": failed_syncs,
         "sync_success_rate": ((recent_syncs - failed_syncs) / recent_syncs * 100) if recent_syncs > 0 else 100
     }
+
+
+@router.post("/sync-all")
+def sync_all_connections(
+    force_sync: bool = Query(False, description="Force sync even if not scheduled"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Trigger sync for all active API connections using the correlation engine.
+    
+    **Frontend Integration Notes:**
+    - Use this to sync all data sources at once
+    - Shows comprehensive results with correlation statistics
+    """
+    try:
+        from backend.app.services.sync_orchestrator import SyncOrchestrator
+        orchestrator = SyncOrchestrator(db)
+        
+        results = orchestrator.sync_all_connections(force_sync=force_sync)
+        
+        return {
+            "message": "Batch sync completed",
+            "results": results
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Batch sync failed: {str(e)}"
+        )
+
+
+@router.get("/orphans")
+def detect_orphaned_resources(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Detect orphaned resources (devices without owners, accounts without users, etc.).
+    
+    **Frontend Integration Notes:**
+    - Use this for compliance dashboards
+    - Shows resources that need attention
+    - Helps identify cost optimization opportunities
+    """
+    try:
+        from backend.app.services.identity_correlation import IdentityCorrelationEngine
+        engine = IdentityCorrelationEngine(db)
+        
+        orphans = engine.detect_orphaned_resources()
+        
+        return {
+            "orphaned_resources": orphans,
+            "summary": {
+                "orphaned_devices": len(orphans["devices_without_owners"]),
+                "orphaned_accounts": len(orphans["accounts_without_users"]),
+                "inactive_users_with_resources": len(orphans["inactive_users_with_resources"])
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Orphan detection failed: {str(e)}"
+        )
+
+
+@router.post("/improve-device-names")
+def improve_device_names(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Improve device names by adding last names for better clarity.
+    
+    **Frontend Integration Notes:**
+    - Use this to enhance existing device names with full names
+    - Shows before/after results for transparency
+    - Helps with device identification when multiple users have similar first names
+    """
+    try:
+        from backend.app.services.identity_correlation import IdentityCorrelationEngine
+        engine = IdentityCorrelationEngine(db)
+        
+        # Get all devices with owners
+        devices = db.query(Device).filter(
+            Device.owner_cid.isnot(None)
+        ).all()
+        
+        improvements = []
+        total_improved = 0
+        
+        for device in devices:
+            if device.owner_cid:
+                original_name = device.name
+                improved_name = engine._improve_device_name(device.name, device.owner_cid)
+                
+                if improved_name != original_name:
+                    device.name = improved_name
+                    improvements.append({
+                        "device_id": str(device.id),
+                        "original_name": original_name,
+                        "improved_name": improved_name,
+                        "owner_name": device.owner.full_name if device.owner else None
+                    })
+                    total_improved += 1
+        
+        db.commit()
+        
+        return {
+            "message": f"Improved {total_improved} device names",
+            "improvements": improvements,
+            "total_devices_processed": len(devices),
+            "devices_improved": total_improved
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to improve device names: {str(e)}"
+        )
+
+
+@router.post("/fix-misnamed-devices")
+def fix_misnamed_devices(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Fix devices that are completely misnamed (wrong owner name in device name).
+    
+    **Frontend Integration Notes:**
+    - Use this when devices show wrong owner names
+    - Corrects devices like "Adam's iPad" owned by "Laura Howe" to "Laura Howe's iPad"
+    """
+    try:
+        devices = db.query(Device).filter(
+            Device.owner_cid.isnot(None)
+        ).all()
+        
+        fixes = []
+        total_fixed = 0
+        
+        for device in devices:
+            if device.owner and device.owner.full_name:
+                owner_parts = device.owner.full_name.strip().split()
+                if len(owner_parts) >= 2:
+                    owner_first = owner_parts[0].lower()
+                    owner_full = f"{owner_parts[0]} {owner_parts[-1]}"
+                    
+                    # Check if device name has possessive pattern
+                    if "'s " in device.name:
+                        device_first = device.name.split("'s ")[0].strip().lower()
+                        device_type = device.name.split("'s ", 1)[1]
+                        
+                        # If device shows wrong owner name, fix it
+                        if device_first != owner_first:
+                            original_name = device.name
+                            device.name = f"{owner_full}'s {device_type}"
+                            
+                            fixes.append({
+                                "device_id": str(device.id),
+                                "original_name": original_name,
+                                "corrected_name": device.name,
+                                "actual_owner": device.owner.full_name,
+                                "issue": f"Device named for '{device_first}' but owned by '{owner_first}'"
+                            })
+                            total_fixed += 1
+        
+        db.commit()
+        
+        return {
+            "message": f"Fixed {total_fixed} misnamed devices",
+            "fixes": fixes,
+            "total_devices_processed": len(devices),
+            "devices_fixed": total_fixed
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fix misnamed devices: {str(e)}"
+        )

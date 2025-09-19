@@ -27,7 +27,7 @@ class Settings:
     
     def _parse_allowed_origins(self):
         """Parse allowed origins from environment variable"""
-        origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech,https://api.privion.tech")
+        origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:8080,https://ion-app-rose.vercel.app,https://app.privion.tech,https://api.privion.tech,https://privion.tech,https://www.privion.tech,https://dashboard.privion.tech,https://admin.privion.tech")
         
         if not origins_str:
             self.allowed_origins = ["*"]

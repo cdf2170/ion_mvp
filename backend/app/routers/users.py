@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
-from typing import Optional
+from sqlalchemy import func, or_, asc, desc
+from typing import Optional, List
 import random
 from uuid import UUID
+from enum import Enum
 
 from backend.app.db.session import get_db
 from backend.app.db.models import CanonicalIdentity, Device, GroupMembership, Account, StatusEnum
+from backend.app.utils import SortDirection, apply_pagination, apply_sorting, apply_text_search
 from backend.app.schemas import (
     UserListResponse, 
     UserListItemSchema, 
@@ -33,24 +35,54 @@ from backend.app.security.auth import verify_token
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+class UserSortBy(str, Enum):
+    """Available columns for sorting users"""
+    email = "email"
+    full_name = "full_name"
+    department = "department"
+    role = "role"
+    last_seen = "last_seen"
+    status = "status"
+    created_at = "created_at"
+    manager = "manager"
+    location = "location"
+
+
 @router.get("", response_model=UserListResponse)
 def get_users(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Number of items per page"),
+    sort_by: UserSortBy = Query(UserSortBy.full_name, description="Column to sort by"),
+    sort_direction: SortDirection = Query(SortDirection.asc, description="Sort direction (asc/desc)"),
     status: Optional[StatusEnum] = Query(None, description="Filter by user status"),
     department: Optional[str] = Query(None, description="Filter by department"),
-    query: Optional[str] = Query(None, description="Search in email and full_name"),
+    role: Optional[str] = Query(None, description="Filter by role"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    query: Optional[str] = Query(None, description="Search in email, name, department, role, manager, and location"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
     """
-    Get paginated list of users with optional filtering and search.
+    Get paginated list of users with optional filtering, search, and sorting.
     
-    - **page**: Page number (starts from 1)
-    - **page_size**: Number of items per page (1-100)
-    - **status**: Filter by user status (Active/Disabled)
-    - **department**: Filter by department name
-    - **query**: Search term for email and full name
+    **Frontend Integration Notes:**
+    - Enhanced search works across email, name, department, role, manager, and location
+    - Supports sorting by any column with direction control
+    - Multiple filter options for refined results
+    
+    Args:
+        page: Page number (starts from 1)
+        page_size: Number of items per page (1-100)
+        sort_by: Column to sort by (email, full_name, department, etc.)
+        sort_direction: Sort direction (asc/desc)
+        status: Filter by user status (Active/Disabled)
+        department: Filter by department name
+        role: Filter by role/title
+        location: Filter by location
+        query: Search term for email, name, department, role, manager, and location
+    
+    Returns:
+        Paginated list of users with filtering and sorting applied
     """
     
     # Build base query
@@ -63,22 +95,40 @@ def get_users(
     if department:
         base_query = base_query.filter(CanonicalIdentity.department.ilike(f"%{department}%"))
     
+    if role:
+        base_query = base_query.filter(CanonicalIdentity.role.ilike(f"%{role}%"))
+    
+    if location:
+        base_query = base_query.filter(CanonicalIdentity.location.ilike(f"%{location}%"))
+    
+    # Enhanced search functionality
     if query:
-        search_filter = or_(
-            CanonicalIdentity.email.ilike(f"%{query}%"),
-            CanonicalIdentity.full_name.ilike(f"%{query}%")
-        )
-        base_query = base_query.filter(search_filter)
+        search_columns = [
+            CanonicalIdentity.email,
+            CanonicalIdentity.full_name,
+            CanonicalIdentity.department,
+            CanonicalIdentity.role,
+            CanonicalIdentity.manager,
+            CanonicalIdentity.location
+        ]
+        base_query = apply_text_search(base_query, query, search_columns)
     
-    # Get total count
-    total = base_query.count()
+    # Apply sorting
+    sort_mapping = {
+        UserSortBy.email: CanonicalIdentity.email,
+        UserSortBy.full_name: CanonicalIdentity.full_name,
+        UserSortBy.department: CanonicalIdentity.department,
+        UserSortBy.role: CanonicalIdentity.role,
+        UserSortBy.last_seen: CanonicalIdentity.last_seen,
+        UserSortBy.status: CanonicalIdentity.status,
+        UserSortBy.created_at: CanonicalIdentity.created_at,
+        UserSortBy.manager: CanonicalIdentity.manager,
+        UserSortBy.location: CanonicalIdentity.location
+    }
+    base_query = apply_sorting(base_query, sort_by.value, sort_direction, sort_mapping)
     
-    # Apply pagination
-    offset = (page - 1) * page_size
-    users = base_query.offset(offset).limit(page_size).all()
-    
-    # Calculate total pages
-    total_pages = (total + page_size - 1) // page_size
+    # Apply pagination using utility function
+    users, total, total_pages = apply_pagination(base_query, page, page_size)
     
     return UserListResponse(
         users=[UserListItemSchema.model_validate(user) for user in users],

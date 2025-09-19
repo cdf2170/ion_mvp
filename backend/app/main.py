@@ -87,9 +87,10 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=["*"],
         expose_headers=["*"],
+        max_age=86400,  # Cache preflight requests for 24 hours
     )
     
     # Include routers (only if successfully imported)
@@ -216,6 +217,74 @@ def create_app() -> FastAPI:
     def liveness_check():
         """Liveness probe for Railway"""
         return {"status": "alive"}
+    
+    @app.get("/v1/cors-debug")
+    def cors_debug():
+        """Debug CORS configuration"""
+        return {
+            "cors_origins": cors_origins,
+            "settings_origins": getattr(settings, 'allowed_origins', 'not_set'),
+            "middleware_info": "CORSMiddleware configured with allow_origins",
+            "test_origins": [
+                "https://ion-app-rose.vercel.app",
+                "https://app.privion.tech", 
+                "https://privion.tech",
+                "http://localhost:3000"
+            ]
+        }
+    
+    # Add common API route aliases to prevent frontend confusion
+    @app.get("/api/devices")
+    def devices_alias_redirect():
+        """Redirect common wrong API path to correct endpoint"""
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/v1/devices", status_code=301)
+    
+    @app.get("/api/health")
+    def health_alias():
+        """Health check alias for common API path"""
+        return get_health_data()
+    
+    @app.get("/v1/api-info")
+    def api_info():
+        """Provide API information for frontend developers"""
+        return {
+            "api_version": "1.0.0",
+            "base_url": "/v1",
+            "endpoints": {
+                "devices": {
+                    "url": "/v1/devices",
+                    "methods": ["GET"],
+                    "description": "Get paginated devices with sorting and search",
+                    "parameters": {
+                        "page": "Page number (default: 1)",
+                        "page_size": "Items per page (default: 20, max: 100)",
+                        "sort_by": "Column to sort by (name, ip_address, etc.)",
+                        "sort_direction": "Sort direction (asc/desc)",
+                        "query": "Search term (searches across multiple fields)",
+                        "compliant": "Filter by compliance (true/false)",
+                        "status": "Filter by connection status"
+                    }
+                },
+                "users": {
+                    "url": "/v1/users", 
+                    "methods": ["GET"],
+                    "description": "Get paginated users with sorting and search"
+                },
+                "policies": {
+                    "url": "/v1/policies",
+                    "methods": ["GET", "POST", "PUT", "DELETE"],
+                    "description": "Manage security policies"
+                }
+            },
+            "authentication": {
+                "type": "Bearer Token",
+                "header": "Authorization: Bearer token 21700"
+            },
+            "cors": {
+                "allowed_origins": settings.allowed_origins if hasattr(settings, 'allowed_origins') else ["*"]
+            }
+        }
     
     @app.post("/v1/admin/seed-database")  
     def seed_database_admin(_: str = Depends(verify_token)):

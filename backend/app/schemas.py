@@ -32,6 +32,10 @@ class DeviceSchema(BaseModel):
         name: Human-readable device name (e.g., "John's MacBook Pro")
         last_seen: Last time device was seen/active
         compliant: Whether device meets compliance requirements
+        owner_cid: Canonical Identity of the device owner
+        owner_name: Name of the device owner
+        owner_email: Email of the device owner
+        owner_department: Department of the device owner
         ip_address: Device IP address
         mac_address: Device MAC address
         vlan: VLAN identifier
@@ -46,6 +50,10 @@ class DeviceSchema(BaseModel):
     name: str = Field(..., description="Human-readable device name")
     last_seen: datetime = Field(..., description="Last time device was seen/active")
     compliant: bool = Field(..., description="Whether device meets compliance requirements")
+    owner_cid: UUID = Field(..., description="Canonical Identity of the device owner")
+    owner_name: Optional[str] = Field(None, description="Name of the device owner")
+    owner_email: Optional[str] = Field(None, description="Email of the device owner")
+    owner_department: Optional[str] = Field(None, description="Department of the device owner")
     ip_address: Optional[str] = Field(None, description="Device IP address")
     mac_address: Optional[str] = Field(None, description="Device MAC address")
     vlan: Optional[str] = Field(None, description="VLAN identifier")

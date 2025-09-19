@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Query as FastAPIQuery
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
-from typing import Optional
+from sqlalchemy import func, or_, asc, desc, and_
+from typing import Optional, List
 from uuid import UUID
+from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum
+from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership
 from backend.app.schemas import (
     DeviceSchema,
     DeviceListResponse,
@@ -19,41 +21,72 @@ from backend.app.security.auth import verify_token
 router = APIRouter(prefix="/devices", tags=["devices"])
 
 
+class DeviceSortBy(str, Enum):
+    """Available columns for sorting devices"""
+    name = "name"
+    last_seen = "last_seen"
+    compliant = "compliant"
+    ip_address = "ip_address"
+    mac_address = "mac_address"
+    vlan = "vlan"
+    os_version = "os_version"
+    last_check_in = "last_check_in"
+    status = "status"
+    owner_email = "owner_email"
+    owner_name = "owner_name"
+    owner_department = "owner_department"
+
+
+class SortDirection(str, Enum):
+    """Sort direction"""
+    asc = "asc"
+    desc = "desc"
+
+
 @router.get("", response_model=DeviceListResponse)
 def get_devices(
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Number of items per page"),
-    compliant: Optional[bool] = Query(None, description="Filter by compliance status"),
-    owner_cid: Optional[UUID] = Query(None, description="Filter by owner's canonical identity"),
-    status: Optional[DeviceStatusEnum] = Query(None, description="Filter by connection status"),
-    vlan: Optional[str] = Query(None, description="Filter by VLAN"),
-    tag: Optional[DeviceTagEnum] = Query(None, description="Filter by tag"),
-    query: Optional[str] = Query(None, description="Search in device name"),
+    page: int = FastAPIQuery(1, ge=1, description="Page number"),
+    page_size: int = FastAPIQuery(20, ge=1, le=100, description="Number of items per page"),
+    sort_by: DeviceSortBy = FastAPIQuery(DeviceSortBy.name, description="Column to sort by"),
+    sort_direction: SortDirection = FastAPIQuery(SortDirection.asc, description="Sort direction (asc/desc)"),
+    compliant: Optional[bool] = FastAPIQuery(None, description="Filter by compliance status"),
+    owner_cid: Optional[UUID] = FastAPIQuery(None, description="Filter by owner's canonical identity"),
+    status: Optional[DeviceStatusEnum] = FastAPIQuery(None, description="Filter by connection status"),
+    vlan: Optional[str] = FastAPIQuery(None, description="Filter by VLAN"),
+    tags: Optional[str] = FastAPIQuery(None, description="Filter by tags (comma-separated for multiple tags, e.g. 'LAPTOP,CORPORATE')"),
+    search_query: Optional[str] = FastAPIQuery(None, description="Search in device name, IP, MAC address, owner info, tags, or group"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
     """
-    Get paginated list of devices with optional filtering and search.
+    Get paginated list of devices with optional filtering, search, and sorting.
     
     **Frontend Integration Notes:**
     - Use this to build device dashboards and compliance reports
-    - Supports filtering by compliance status and owner
-    - Search works on device names
+    - Supports filtering by compliance status, connection status, owner, and multiple tags
+    - Enhanced search works on device names, IP addresses, MAC addresses, owner info, tags, and groups
+    - Multiple tags filtering: use comma-separated values (e.g., "REMOTE,VIP") - shows devices with ANY of the tags
+    - Supports sorting by any column with direction control
     - Returns pagination info for infinite scroll or page navigation
     
     Args:
         page: Page number (starts from 1)
         page_size: Number of items per page (1-100)
+        sort_by: Column to sort by (name, last_seen, compliant, etc.)
+        sort_direction: Sort direction (asc/desc)
         compliant: Filter by compliance status (true/false)
         owner_cid: Filter by owner's canonical identity
-        query: Search term for device name
+        status: Filter by connection status (Connected/Disconnected/Unknown)
+        vlan: Filter by VLAN
+        tags: Filter by device tags (comma-separated for multiple tags)
+        search_query: Search term for device name, IP, MAC, owner info, tags, or group
     
     Returns:
-        Paginated list of devices with filtering applied
+        Paginated list of devices with filtering and sorting applied
     """
     
-    # Build base query
-    base_query = db.query(Device)
+    # Build base query with user join for owner information
+    base_query = db.query(Device).join(CanonicalIdentity, Device.owner_cid == CanonicalIdentity.cid)
     
     # Apply filters
     if compliant is not None:
@@ -62,10 +95,113 @@ def get_devices(
     if owner_cid:
         base_query = base_query.filter(Device.owner_cid == owner_cid)
     
-    if query:
-        base_query = base_query.filter(Device.name.ilike(f"%{query}%"))
+    if status:
+        base_query = base_query.filter(Device.status == status)
     
-    # Get total count
+    if vlan:
+        base_query = base_query.filter(Device.vlan.ilike(f"%{vlan}%"))
+    
+    # Handle multiple tags filtering
+    if tags:
+        # Parse comma-separated tags
+        tag_list = [tag.strip().upper() for tag in tags.split(',') if tag.strip()]
+        valid_tags = []
+        
+        # Validate each tag
+        for tag_str in tag_list:
+            try:
+                # Convert string to enum
+                tag_enum = DeviceTagEnum(tag_str)
+                valid_tags.append(tag_enum)
+            except ValueError:
+                # Skip invalid tags
+                continue
+        
+        if valid_tags:
+            # Filter devices that have ANY of the specified tags (OR logic)
+            tag_device_ids = db.query(DeviceTag.device_id).filter(
+                DeviceTag.tag.in_(valid_tags)
+            ).distinct()
+            base_query = base_query.filter(Device.id.in_(tag_device_ids))
+    
+    # We always join with CanonicalIdentity for owner information
+    # (This was already done at the beginning of the function)
+    
+    # Enhanced search functionality
+    if search_query:
+        search_conditions = [
+            Device.name.ilike(f"%{search_query}%"),
+            Device.mac_address.ilike(f"%{search_query}%"),
+            Device.os_version.ilike(f"%{search_query}%"),
+            Device.vlan.ilike(f"%{search_query}%")
+        ]
+        
+        # Handle IP address search (INET type) - convert to text for search
+        if search_query and any(c.isdigit() or c == '.' for c in search_query):
+            try:
+                from sqlalchemy import func
+                search_conditions.append(func.host(Device.ip_address).ilike(f"%{search_query}%"))
+            except:
+                # Fallback: just search as string representation
+                search_conditions.append(Device.ip_address.op('::text').ilike(f"%{search_query}%"))
+        
+        # Add user fields to search (we always have the join now)
+        search_conditions.extend([
+            CanonicalIdentity.full_name.ilike(f"%{search_query}%"),
+            CanonicalIdentity.email.ilike(f"%{search_query}%"),
+            CanonicalIdentity.department.ilike(f"%{search_query}%"),
+            CanonicalIdentity.role.ilike(f"%{search_query}%"),
+            CanonicalIdentity.location.ilike(f"%{search_query}%")
+        ])
+        
+        # Add tag search - find devices with tags that match the search query
+        tag_search_subquery = db.query(DeviceTag.device_id).filter(
+            DeviceTag.tag.op('::text').ilike(f"%{search_query}%")
+        )
+        search_conditions.append(Device.id.in_(tag_search_subquery))
+        
+        # Add group search
+        group_cids = db.query(GroupMembership.cid).filter(
+            GroupMembership.group_name.ilike(f"%{search_query}%")
+        )
+        search_conditions.append(Device.owner_cid.in_(group_cids))
+        
+        base_query = base_query.filter(or_(*search_conditions))
+    
+    # Apply sorting
+    sort_column = None
+    if sort_by == DeviceSortBy.name:
+        sort_column = Device.name
+    elif sort_by == DeviceSortBy.last_seen:
+        sort_column = Device.last_seen
+    elif sort_by == DeviceSortBy.compliant:
+        sort_column = Device.compliant
+    elif sort_by == DeviceSortBy.ip_address:
+        sort_column = Device.ip_address
+    elif sort_by == DeviceSortBy.mac_address:
+        sort_column = Device.mac_address
+    elif sort_by == DeviceSortBy.vlan:
+        sort_column = Device.vlan
+    elif sort_by == DeviceSortBy.os_version:
+        sort_column = Device.os_version
+    elif sort_by == DeviceSortBy.last_check_in:
+        sort_column = Device.last_check_in
+    elif sort_by == DeviceSortBy.status:
+        sort_column = Device.status
+    elif sort_by == DeviceSortBy.owner_email:
+        sort_column = CanonicalIdentity.email
+    elif sort_by == DeviceSortBy.owner_name:
+        sort_column = CanonicalIdentity.full_name
+    elif sort_by == DeviceSortBy.owner_department:
+        sort_column = CanonicalIdentity.department
+    
+    if sort_column is not None:
+        if sort_direction == SortDirection.desc:
+            base_query = base_query.order_by(desc(sort_column))
+        else:
+            base_query = base_query.order_by(asc(sort_column))
+    
+    # Get total count (before pagination)
     total = base_query.count()
     
     # Apply pagination
@@ -75,8 +211,35 @@ def get_devices(
     # Calculate total pages
     total_pages = (total + page_size - 1) // page_size
     
+    # Convert devices to schema with owner information
+    device_schemas = []
+    for device in devices:
+        device_dict = {
+            "id": device.id,
+            "name": device.name,
+            "last_seen": device.last_seen,
+            "compliant": device.compliant,
+            "owner_cid": device.owner_cid,
+            "ip_address": str(device.ip_address) if device.ip_address else None,
+            "mac_address": device.mac_address,
+            "vlan": device.vlan,
+            "os_version": device.os_version,
+            "last_check_in": device.last_check_in,
+            "status": device.status,
+            "tags": device.tags
+        }
+        
+        # Add owner information (we always have the join now)
+        device_dict.update({
+            "owner_name": device.owner.full_name if hasattr(device, 'owner') and device.owner else None,
+            "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
+            "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
+        })
+        
+        device_schemas.append(DeviceSchema.model_validate(device_dict))
+    
     return DeviceListResponse(
-        devices=[DeviceSchema.model_validate(device) for device in devices],
+        devices=device_schemas,
         total=total,
         page=page,
         page_size=page_size,

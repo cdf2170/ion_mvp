@@ -108,8 +108,9 @@ def seed_database():
             # Create 1-4 devices per user
             num_devices = random.randint(1, 4)
             for _ in range(num_devices):
+                # Use first name only to demonstrate the improvement feature
                 device = Device(
-                    name=f"{fake.first_name()}'s {random.choice(device_types)}",
+                    name=f"{user.full_name.split()[0] if user.full_name else fake.first_name()}'s {random.choice(device_types)}",
                     last_seen=fake.date_time_between(start_date='-7d', end_date='now'),
                     compliant=random.choice([True, False]) if random.random() > 0.8 else True,
                     owner_cid=user.cid,
@@ -375,7 +376,7 @@ def seed_database():
         
         # Commit all changes
         db.commit()
-        print(f"✅ Successfully seeded database with:")
+        print(f"Successfully seeded database with:")
         print(f"   - 50 users")
         print(f"   - {db.query(Device).count()} devices")
         print(f"   - {db.query(DeviceTag).count()} device tags")
@@ -388,7 +389,7 @@ def seed_database():
         print(f"   - {db.query(ConfigHistory).count()} config changes")
         
     except Exception as e:
-        print(f"❌ Error seeding database: {e}")
+        print(f"Error seeding database: {e}")
         db.rollback()
         raise
     finally:

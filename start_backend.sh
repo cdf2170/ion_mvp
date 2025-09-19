@@ -56,18 +56,13 @@ exit(0 if count > 0 else 1)
     python seed_db.py
 fi
 
-echo "✅ Database ready with sample data!"
 echo "Database ready with sample data!"
 echo ""
-echo "🚀 Starting FastAPI server..."
 echo "Starting FastAPI server..."
-echo "📍 API Base URL: http://localhost:8006"
 echo "API Base URL: http://localhost:8006"
-echo "📖 API Documentation: http://localhost:8006/docs"
 echo "API Documentation: http://localhost:8006/docs"
 echo "Health Check: http://localhost:8006/health"
 echo ""
-echo "🔑 Authentication: Bearer demo-token-12345"
 echo "Authentication: Bearer demo-token-12345"
 echo ""
 echo "Press Ctrl+C to stop the server"

@@ -89,7 +89,7 @@ def authorize(
                     <option value="jane.smith@company.com">Jane Smith</option>
                 </select>
                 
-                <button type="submit">🚀 Authorize & Continue</button>
+                <button type="submit">Authorize & Continue</button>
             </form>
             
             <div class="info">

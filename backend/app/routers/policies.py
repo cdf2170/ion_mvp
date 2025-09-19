@@ -1,12 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, asc, desc
 from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
+from enum import Enum
 
 from backend.app.db.session import get_db
 from backend.app.db.models import Policy, PolicyTypeEnum, PolicySeverityEnum
+from backend.app.utils import SortDirection, apply_pagination, apply_sorting, apply_text_search
 from backend.app.schemas import (
     PolicySchema,
     PolicyCreateRequest,
@@ -18,55 +20,93 @@ from backend.app.security.auth import verify_token
 router = APIRouter(prefix="/policies", tags=["policy-management"])
 
 
+class PolicySortBy(str, Enum):
+    """Available columns for sorting policies"""
+    name = "name"
+    policy_type = "policy_type"
+    severity = "severity"
+    enabled = "enabled"
+    created_at = "created_at"
+    updated_at = "updated_at"
+    created_by = "created_by"
+
+
 @router.get("", response_model=PolicyListResponse)
 def get_policies(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Number of items per page"),
+    sort_by: PolicySortBy = Query(PolicySortBy.created_at, description="Column to sort by"),
+    sort_direction: SortDirection = Query(SortDirection.desc, description="Sort direction (asc/desc)"),
     policy_type: Optional[PolicyTypeEnum] = Query(None, description="Filter by policy type"),
     severity: Optional[PolicySeverityEnum] = Query(None, description="Filter by severity"),
     enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
-    query: Optional[str] = Query(None, description="Search in policy name or description"),
+    created_by: Optional[str] = Query(None, description="Filter by creator"),
+    query: Optional[str] = Query(None, description="Search in policy name, description, and creator"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
     """
-    Get paginated list of policies with optional filtering and search.
+    Get paginated list of policies with optional filtering, search, and sorting.
     
     **Frontend Integration Notes:**
     - Use this to build policy management dashboards
-    - Filter by type to show specific policy categories
-    - Use severity filtering for compliance reporting
+    - Enhanced search works across name, description, and creator
+    - Supports sorting by any column with direction control
+    - Multiple filter options for refined results
+    
+    Args:
+        page: Page number (starts from 1)
+        page_size: Number of items per page (1-100)
+        sort_by: Column to sort by (name, type, severity, etc.)
+        sort_direction: Sort direction (asc/desc)
+        policy_type: Filter by policy type
+        severity: Filter by severity level
+        enabled: Filter by enabled status
+        created_by: Filter by creator
+        query: Search term for name, description, and creator
+    
+    Returns:
+        Paginated list of policies with filtering and sorting applied
     """
-    # Build query
-    query_filter = db.query(Policy)
+    # Build base query
+    base_query = db.query(Policy)
     
     # Apply filters
     if policy_type:
-        query_filter = query_filter.filter(Policy.policy_type == policy_type)
+        base_query = base_query.filter(Policy.policy_type == policy_type)
+    
     if severity:
-        query_filter = query_filter.filter(Policy.severity == severity)
+        base_query = base_query.filter(Policy.severity == severity)
+    
     if enabled is not None:
-        query_filter = query_filter.filter(Policy.enabled == enabled)
+        base_query = base_query.filter(Policy.enabled == enabled)
+    
+    if created_by:
+        base_query = base_query.filter(Policy.created_by.ilike(f"%{created_by}%"))
+    
+    # Enhanced search functionality
     if query:
-        search = f"%{query}%"
-        query_filter = query_filter.filter(
-            or_(
-                Policy.name.ilike(search),
-                Policy.description.ilike(search)
-            )
-        )
+        search_columns = [
+            Policy.name,
+            Policy.description,
+            Policy.created_by
+        ]
+        base_query = apply_text_search(base_query, query, search_columns)
     
-    # Order by creation date (newest first)
-    query_filter = query_filter.order_by(Policy.created_at.desc())
+    # Apply sorting
+    sort_mapping = {
+        PolicySortBy.name: Policy.name,
+        PolicySortBy.policy_type: Policy.policy_type,
+        PolicySortBy.severity: Policy.severity,
+        PolicySortBy.enabled: Policy.enabled,
+        PolicySortBy.created_at: Policy.created_at,
+        PolicySortBy.updated_at: Policy.updated_at,
+        PolicySortBy.created_by: Policy.created_by
+    }
+    base_query = apply_sorting(base_query, sort_by.value, sort_direction, sort_mapping)
     
-    # Get total count
-    total = query_filter.count()
-    
-    # Apply pagination
-    policies = query_filter.offset((page - 1) * page_size).limit(page_size).all()
-    
-    # Calculate pagination info
-    total_pages = (total + page_size - 1) // page_size
+    # Apply pagination using utility function
+    policies, total, total_pages = apply_pagination(base_query, page, page_size)
     
     return PolicyListResponse(
         policies=policies,
