@@ -1,91 +1,91 @@
-# API Endpoints Updated - Clean Versioned Routes
+# API E U - C V R
 
-## ✅ Fixed Issues
+##   I
 
-1. **CORS for localhost:3001** - Now working properly
-2. **Clean API versioning** - Removed redundant `/api` prefix while keeping `/v1` for version control
-3. **Railway deployment configuration verified** - Working correctly
+. **CORS  :** - N  y
+. **C API ** - R  `/`    `/`   
+. **Ry y  ** - W y
 
-## 🚀 New API Endpoints Structure
+##  N API E S
 
-### Production (Railway)
-- **Base URL**: `https://api.privion.tech`
-- **Health Check**: `https://api.privion.tech/v1/health`
-- **Users**: `https://api.privion.tech/v1/users`
-- **Devices**: `https://api.privion.tech/v1/devices`
-- **API Management**: `https://api.privion.tech/v1/apis`
-- **Policies**: `https://api.privion.tech/v1/policies`
-- **History**: `https://api.privion.tech/v1/history`
+### P (Ry)
+- ** URL**: `://..`
+- **H C**: `://..//`
+- **U**: `://..//`
+- **D**: `://..//`
+- **API M**: `://..//`
+- **P**: `://..//`
+- **Hy**: `://..//y`
 
-### Local Development
-- **Base URL**: `http://localhost:8000`
-- **Health Check**: `http://localhost:8000/v1/health`
-- **Users**: `http://localhost:8000/v1/users`
-- **Devices**: `http://localhost:8000/v1/devices`
-- **API Management**: `http://localhost:8000/v1/apis`
-- **Policies**: `http://localhost:8000/v1/policies`
-- **History**: `http://localhost:8000/v1/history`
+### L D
+- ** URL**: `://:`
+- **H C**: `://://`
+- **U**: `://://`
+- **D**: `://://`
+- **API M**: `://://`
+- **P**: `://://`
+- **Hy**: `://://y`
 
-## 🔐 Authentication
+##  A
 
-All endpoints (except `/v1/health` and `/`) require Bearer token authentication:
+A  ( `//`  `/`)    :
 
-```bash
-curl -H "Authorization: Bearer demo-token-12345" https://api.privion.tech/v1/users
+```
+ -H "Az:  --" ://..//
 ```
 
-## 🌐 CORS Configuration
+##  CORS C
 
-The following origins are allowed:
-- `http://localhost:3000`
-- `http://localhost:3001` ✅ **Fixed**
-- `http://localhost:5173`
-- `https://ion-app-rose.vercel.app`
-- `https://app.privion.tech`
-- `https://api.privion.tech`
+T    :
+- `://:`
+- `://:`  ****
+- `://:`
+- `://--..`
+- `://..`
+- `://..`
 
-## 📝 Frontend Configuration
+##   C
 
-Update your frontend API base URLs to:
+U y  API  URL :
 
-### For Production
-```javascript
-const API_BASE_URL = "https://api.privion.tech";
+###  P
+```
+ API_ASE_URL = "://..";
 ```
 
-### For Development
-```javascript
-const API_BASE_URL = "http://localhost:8000";
+###  D
+```
+ API_ASE_URL = "://:";
 ```
 
-### Example Usage
-```javascript
-// Old (redundant): https://api.privion.tech/api/v1/users
-// New (clean + versioned): https://api.privion.tech/v1/users
+### E U
+```
+// O (): ://..///
+// N ( + ): ://..//
 
-fetch(`${API_BASE_URL}/v1/users`, {
-  headers: {
-    'Authorization': 'Bearer demo-token-12345'
-  }
-});
+(`API_ASE_URL//`, 
+  : 
+    'Az': ' --'
+  
+);
 ```
 
-## 🔄 Deployment
+##  Dy
 
-The changes are ready to deploy to Railway. The Railway configuration in `railway.json` and `nixpacks.toml` is already correctly set up.
+T   y  y  Ry. T Ry   `y.`  `.`  y y  .
 
-## ✅ Verification Commands
+##  V C
 
-```bash
-# Test health endpoint
-curl https://api.privion.tech/v1/health
+```
+# T  
+ ://..//
 
-# Test users endpoint with auth
-curl -H "Authorization: Bearer demo-token-12345" https://api.privion.tech/v1/users
+# T    
+ -H "Az:  --" ://..//
 
-# Test CORS from localhost:3001
-curl -H "Origin: http://localhost:3001" \
-     -H "Access-Control-Request-Method: GET" \
-     -H "Access-Control-Request-Headers: Authorization" \
-     -X OPTIONS https://api.privion.tech/v1/users
+# T CORS  :
+ -H "O: ://:" \
+     -H "A-C-R-M: GET" \
+     -H "A-C-R-H: Az" \
+     -X OPTIONS ://..//
 ```

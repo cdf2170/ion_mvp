@@ -1,180 +1,180 @@
-# Railway Deployment Guide
+# Ry Dy G
 
-## Quick Railway Deployment
+## Q Ry Dy
 
-### 1. Install Railway CLI
-```bash
-npm install -g @railway/cli
+### . I Ry CLI
+```
+  - @y/
 ```
 
-### 2. Login and Initialize
-```bash
-# Login to Railway
-railway login
+### . L  Iz
+```
+# L  Ry
+y 
 
-# Initialize project in this directory
-railway init
+# Iz    y
+y 
 
-# When prompted:
-# - Project name: "mvp-iam-backend" (or your preferred name)
-# - Template: Select "Empty Project"
+# W :
+# - P : "--" ( y  )
+# - T: S "Ey P"
 ```
 
-### 3. Add PostgreSQL Database
-```bash
-# Add PostgreSQL service
-railway add postgresql
+### . A PSQL D
+```
+# A PSQL 
+y  
 
-# This automatically creates a database and sets DATABASE_URL
+# T y      DATAASE_URL
 ```
 
-### 4. Set Environment Variables
-```bash
-# Set your demo token (or generate a secure one)
-railway variables set DEMO_API_TOKEN=demo-token-12345
+### . S E V
+```
+# S y   (    )
+y   DEMO_API_TOKEN=--
 
-# Set allowed origins for your frontend
-railway variables set ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001,http://localhost:5173,https://ion-app-rose.vercel.app,https://app.privion.tech
+# S    y 
+y   ALLOWED_ORIGINS=://:,://:,://:,://--..,://..
 
-# Set production mode
-railway variables set DEBUG=false
+# S  
+y   DEUG=
 
-# App name
-railway variables set APP_NAME="MVP IAM Backend"
+# A 
+y   APP_NAME="MVP IAM "
 ```
 
-### 5. Deploy
-```bash
-# Deploy your backend
-railway up
+### . Dy
+```
+# Dy y 
+y 
 
-# Railway will:
-# - Build your Python app
-# - Run database migrations automatically  
-# - Start the FastAPI server
-# - Provide you with a public URL
+# Ry :
+# -  y Py 
+# - R   y  
+# - S  API 
+# - P y    URL
 ```
 
-### 6. Run Database Setup
-After first deployment, you need to run migrations and seed data:
+### . R D S
+A  y, y       :
 
-```bash
-# Connect to your Railway project
-railway shell
+```
+# C  y Ry 
+y 
 
-# Run migrations
-alembic upgrade head
+# R 
+  
 
-# Seed with sample data
-python seed_db.py
+# S   
+y _.y
 
-# Exit
-exit
+# E
+
 ```
 
-## Your Backend is Live! 🚀
+## Y   L! 
 
-After deployment, you'll get:
-- **API URL**: `https://your-project.railway.app`
-- **Health Check**: `https://your-project.railway.app/health`
-- **API Docs**: `https://your-project.railway.app/docs`
+A y, y' :
+- **API URL**: `://y-.y.`
+- **H C**: `://y-.y./`
+- **API D**: `://y-.y./`
 
-## Frontend Integration
+##  I
 
-Update your frontend environment variables:
+U y   :
 
-```env
-# Vercel Environment Variables
-NEXT_PUBLIC_API_URL=https://your-project.railway.app
-NEXT_PUBLIC_API_TOKEN=demo-token-12345
+```
+# V E V
+NEXT_PULIC_API_URL=://y-.y.
+NEXT_PULIC_API_TOKEN=--
 ```
 
-## Monitoring & Management
+## M & M
 
-### Railway Dashboard
-- **Deployments**: View build logs and deployment history
-- **Metrics**: CPU, memory, and request metrics
-- **Logs**: Real-time application logs
-- **Variables**: Manage environment variables
-- **Database**: PostgreSQL management interface
+### Ry D
+- **Dy**: V    y y
+- **M**: CPU, y,   
+- **L**: R-  
+- **V**: M  
+- **D**: PSQL  
 
-### Useful Railway Commands
-```bash
-# View logs
-railway logs
+### U Ry C
+```
+# V 
+y 
 
-# Open dashboard
-railway open
+# O 
+y 
 
-# Connect to database
-railway connect postgresql
+# C  
+y  
 
-# View current variables
-railway variables
+# V  
+y 
 
-# Redeploy
-railway up --detach
+# Ry
+y  --
 ```
 
-## Scaling & Pricing
+## S & P
 
-**Railway Pricing** (as of 2024):
-- **Hobby Plan**: $5/month + usage
-- **Pro Plan**: $20/month + usage
-- **Database**: ~$5-15/month depending on usage
+**Ry P** (  ):
+- **Hy P**: / + 
+- **P P**: / + 
+- **D**: -/   
 
-**Automatic Scaling**:
-- Railway auto-scales based on demand
-- Handles traffic spikes automatically
-- No manual intervention needed
+**A S**:
+- Ry -   
+- H   y
+- N   
 
-## Production Checklist
+## P C
 
-✅ **Security**:
-- [ ] Generate secure `DEMO_API_TOKEN` (not demo-token-12345)
-- [ ] Set `ALLOWED_ORIGINS` to your actual frontend domain
-- [ ] Set `DEBUG=false`
+ **Sy**:
+- [ ] G  `DEMO_API_TOKEN` ( --)
+- [ ] S `ALLOWED_ORIGINS`  y   
+- [ ] S `DEUG=`
 
-✅ **Database**:
-- [ ] Migrations run successfully (`alembic upgrade head`)
-- [ ] Sample data seeded (`python seed_db.py`)
-- [ ] Database backups enabled in Railway dashboard
+ **D**:
+- [ ] M  y (`  `)
+- [ ] S   (`y _.y`)
+- [ ] D    Ry 
 
-✅ **Monitoring**:
-- [ ] Health check responding: `/health`
-- [ ] API docs accessible: `/docs`
-- [ ] Test key endpoints with authentication
+ **M**:
+- [ ] H  : `/`
+- [ ] API  : `/`
+- [ ] T y   
 
-✅ **Frontend**:
-- [ ] Frontend deployed to Vercel
-- [ ] Environment variables updated
-- [ ] CORS working correctly
+ ****:
+- [ ]  y  V
+- [ ] E  
+- [ ] CORS  y
 
-## Troubleshooting
+## T
 
-**Build Issues**:
-```bash
-# Check build logs
-railway logs --deployment
+** I**:
+```
+# C  
+y  --y
 
-# Rebuild
-railway up
+# R
+y 
 ```
 
-**Database Connection Issues**:
-```bash
-# Check if DATABASE_URL is set
-railway variables
+**D C I**:
+```
+# C  DATAASE_URL  
+y 
 
-# Test database connection
-railway shell
-python -c "from backend.app.db.session import engine; print('DB Connected!' if engine else 'Failed')"
+# T  
+y 
+y - " ...  ; ('D C!'    '')"
 ```
 
-**CORS Issues**:
-```bash
-# Update allowed origins
-railway variables set ALLOWED_ORIGINS=https://your-domain.vercel.app,http://localhost:5173
+**CORS I**:
+```
+# U  
+y   ALLOWED_ORIGINS=://y-..,://:
 ```
 
-Your MVP IAM platform is now production-ready on Railway! 🎉
+Y MVP IAM    -y  Ry! 

@@ -1,381 +1,381 @@
-# MVP Backend
+# MVP 
 
-Production-ready FastAPI backend with PostgreSQL for user and device management.
+P-y API   PSQL     .
 
-## Features
+## 
 
-- **FastAPI** with automatic API documentation
-- **PostgreSQL** database with SQLAlchemy 2.x ORM
-- **Alembic** database migrations
-- **Bearer token authentication** for API security
-- **CORS** configured for frontend integration
-- **Pagination, filtering, and search** on user endpoints
-- **Database seeding** with realistic fake data
+- **API**   API 
+- **PSQL**   SQLAy . ORM
+- **A**  
+- **  **  API y
+- **CORS**    
+- **P, ,  **   
+- **D **    
 
-## API Endpoints
+## API E
 
-### Users (Identity Management)
-- `GET /api/v1/users` - List users with pagination, filtering, and search
-  - Query params: `page`, `page_size`, `status`, `department`, `query`
-- `GET /api/v1/users/{cid}` - Get detailed user information with devices, groups, accounts
-- `PUT /api/v1/users/{cid}` - Update user identity information (rename, change dept, etc.)
-- `POST /api/v1/users/merge` - Merge two user identities (consolidate duplicates)
-- `POST /api/v1/users/scan/{cid}` - Simulate compliance scan
-- `POST /api/v1/users/password-reset` - Reset user password across connected systems
-- `POST /api/v1/users/sync` - Trigger synchronization of user data from external systems
-- `POST /api/v1/users/advanced-merge` - Preview advanced identity merge with conflict resolution
-- `POST /api/v1/users/advanced-merge/execute` - Execute advanced identity merge
+### U (Iy M)
+- `GET ///` - L   , ,  
+  - Qy : ``, `_z`, ``, ``, `y`
+- `GET ////` - G     , , 
+- `PUT ////` - U  y  (,  , .)
+- `POST ////` - M    ( )
+- `POST /////` - S  
+- `POST ////-` - R     y
+- `POST ////y` - T yz      y
+- `POST ////-` - P  y    
+- `POST ////-/` - E  y 
 
-### Devices
-- `GET /api/v1/devices` - List devices with pagination, filtering, and search
-  - Query params: `page`, `page_size`, `compliant`, `owner_cid`, `status`, `vlan`, `tag`, `query`
-- `GET /api/v1/devices/{device_id}` - Get detailed device information
-- `PUT /api/v1/devices/{device_id}` - Update device (rename, change compliance, reassign owner)
-- `DELETE /api/v1/devices/{device_id}` - Delete device
-- `GET /api/v1/devices/non-compliant/summary` - Get compliance summary by user
+### D
+- `GET ///` - L   , ,  
+  - Qy : ``, `_z`, ``, `_`, ``, ``, ``, `y`
+- `GET ////_` - G   
+- `PUT ////_` - U  (,  ,  )
+- `DELETE ////_` - D 
+- `GET ////-/y` - G  y y 
 
-#### Device Summary Endpoints (Dashboard Analytics)
-- `GET /api/v1/devices/summary/counts` - Get device count summary (total, MDM, BYOD)
-- `GET /api/v1/devices/summary/by-status` - Device breakdown by connection status
-- `GET /api/v1/devices/summary/compliance` - Compliance breakdown with percentages
-- `GET /api/v1/devices/summary/by-tag` - Device distribution by tags (remote, on-site, etc.)
-- `GET /api/v1/devices/summary/by-vlan` - Device distribution by VLAN
-- `GET /api/v1/devices/summary/recent-activity` - Recent activity summary (24h, 7d, 30d)
-- `GET /api/v1/devices/summary/by-os` - Device breakdown by operating system
-- `GET /api/v1/devices/summary/risk-analysis` - Risk analysis combining multiple factors
+#### D Sy E (D Ay)
+- `GET ////y/` - G   y (, MDM, YOD)
+- `GET ////y/y-` - D  y  
+- `GET ////y/` - C   
+- `GET ////y/y-` - D  y  (, -, .)
+- `GET ////y/y-` - D  y VLAN
+- `GET ////y/-y` - R y y (, , )
+- `GET ////y/y-` - D  y  y
+- `GET ////y/-y` - R y   
 
-### API Management
-- `GET /api/v1/apis` - List API connections with filtering and search
-  - Query params: `page`, `page_size`, `provider`, `status`, `tag`, `sync_enabled`, `query`
-- `GET /api/v1/apis/{connection_id}` - Get API connection details
-- `POST /api/v1/apis` - Create new API connection
-- `PUT /api/v1/apis/{connection_id}` - Update API connection
-- `DELETE /api/v1/apis/{connection_id}` - Delete API connection
-- `POST /api/v1/apis/{connection_id}/test` - Test API connection health
-- `POST /api/v1/apis/{connection_id}/sync` - Trigger manual sync
-- `GET /api/v1/apis/{connection_id}/logs` - Get sync logs
-- `PUT /api/v1/apis/{connection_id}/tags` - Update connection tags
-- `GET /api/v1/apis/status/summary` - Get API status summary
+### API M
+- `GET ///` - L API     
+  - Qy : ``, `_z`, ``, ``, ``, `y_`, `y`
+- `GET ////_` - G API  
+- `POST ///` - C  API 
+- `PUT ////_` - U API 
+- `DELETE ////_` - D API 
+- `POST ////_/` - T API  
+- `POST ////_/y` - T  y
+- `GET ////_/` - G y 
+- `PUT ////_/` - U  
+- `GET /////y` - G API  y
 
-### Policy Management
-- `GET /api/v1/policies` - List policies with filtering and search
-  - Query params: `page`, `page_size`, `policy_type`, `severity`, `enabled`, `query`
-- `GET /api/v1/policies/{policy_id}` - Get policy details
-- `POST /api/v1/policies` - Create new policy
-- `PUT /api/v1/policies/{policy_id}` - Update policy
-- `DELETE /api/v1/policies/{policy_id}` - Delete policy
-- `POST /api/v1/policies/{policy_id}/enable` - Enable policy
-- `POST /api/v1/policies/{policy_id}/disable` - Disable policy
-- `GET /api/v1/policies/summary/by-type` - Get policy summary by type
-- `GET /api/v1/policies/summary/by-severity` - Get policy summary by severity
+### Py M
+- `GET ///` - L     
+  - Qy : ``, `_z`, `y_y`, `y`, ``, `y`
+- `GET ////y_` - G y 
+- `POST ///` - C  y
+- `PUT ////y_` - U y
+- `DELETE ////y_` - D y
+- `POST ////y_/` - E y
+- `POST ////y_/` - D y
+- `GET ////y/y-y` - G y y y y
+- `GET ////y/y-y` - G y y y y
 
-### History & Audit
-- `GET /api/v1/history/config` - Get configuration change history
-  - Query params: `page`, `page_size`, `entity_type`, `entity_id`, `change_type`, `changed_by`, `days_back`
-- `GET /api/v1/history/activity` - Get user activity history
-  - Query params: `page`, `page_size`, `user_cid`, `device_id`, `activity_type`, `source_system`, `risk_score`, `days_back`
-- `POST /api/v1/history/activity` - Create new activity record
-- `GET /api/v1/history/activity/summary/by-type` - Get activity summary by type
-- `GET /api/v1/history/activity/summary/by-risk` - Get activity summary by risk score
-- `GET /api/v1/history/config/summary/recent-changes` - Get recent configuration changes summary
-- `GET /api/v1/history/timeline` - Get combined timeline for specific entity
+### Hy & A
+- `GET ///y/` - G   y
+  - Qy : ``, `_z`, `y_y`, `y_`, `_y`, `_y`, `y_`
+- `GET ///y/y` - G  y y
+  - Qy : ``, `_z`, `_`, `_`, `y_y`, `_y`, `_`, `y_`
+- `POST ///y/y` - C  y 
+- `GET ///y/y/y/y-y` - G y y y y
+- `GET ///y/y/y/y-` - G y y y  
+- `GET ///y//y/-` - G    y
+- `GET ///y/` - G     y
 
-### System
-- `GET /` - API information
-- `GET /health` - Health check endpoint
+### Sy
+- `GET /` - API 
+- `GET /` - H  
 
-## Frontend Integration Guide
+##  I G
 
-### Authentication
-All API endpoints require Bearer token authentication:
-```javascript
-const headers = {
-  'Authorization': 'Bearer demo-token-12345',
-  'Content-Type': 'application/json'
-}
+### A
+A API     :
+```
+  = 
+  'Az': ' --',
+  'C-Ty': '/'
+
 ```
 
-### Key Data Types for Frontend
+### Ky D Ty  
 
-#### UserListItemSchema (for user tables)
-```typescript
-interface UserListItem {
-  cid: string;           // Canonical Identity UUID
-  email: string;         // Primary email
-  department: string;    // Department name
-  last_seen: string;     // ISO datetime
-  status: "Active" | "Disabled";
-}
+#### ULIS (  )
+```y
+ ULI 
+  : ;           // C Iy UUID
+  : ;         // Py 
+  : ;    // D 
+  _: ;     // ISO 
+  : "A" | "D";
+
 ```
 
-#### UserDetailSchema (for user detail views)
-```typescript
-interface UserDetail {
-  cid: string;
-  email: string;
-  full_name: string;
-  department: string;
-  role: string;
-  manager?: string;
-  location?: string;
-  last_seen: string;
-  status: "Active" | "Disabled";
-  created_at: string;
-  devices: Device[];
-  groups: GroupMembership[];
-  accounts: Account[];
-}
+#### UDS (   )
+```y
+ UD 
+  : ;
+  : ;
+  _: ;
+  : ;
+  : ;
+  ?: ;
+  ?: ;
+  _: ;
+  : "A" | "D";
+  _: ;
+  : D[];
+  : GM[];
+  : A[];
+
 ```
 
-#### DeviceSchema
-```typescript
-interface Device {
-  id: string;            // Device UUID
-  name: string;          // Human-readable name
-  last_seen: string;     // ISO datetime
-  compliant: boolean;    // Compliance status
-}
+#### DS
+```y
+ D 
+  : ;            // D UUID
+  : ;          // H- 
+  _: ;     // ISO 
+  : ;    // C 
+
 ```
 
-### Common API Patterns
+### C API P
 
-#### Pagination
-All list endpoints return:
-```typescript
-interface PaginatedResponse<T> {
-  items: T[];           // users/devices for current page
-  total: number;        // total matching items
-  page: number;         // current page (1-based)
-  page_size: number;    // items per page
-  total_pages: number;  // total pages
-}
+#### P
+A   :
+```y
+ PR<T> 
+  : T[];           // /   
+  : ;        //   
+  : ;         //   (-)
+  _z: ;    //   
+  _: ;  //  
+
 ```
 
-#### Error Handling
-API returns standard HTTP status codes:
-- `200`: Success
-- `400`: Bad Request (validation errors)
-- `401`: Unauthorized (invalid/missing token)
-- `404`: Not Found
-- `422`: Validation Error
+#### E H
+API   HTTP  :
+- ``: S
+- ``:  R ( )
+- ``: Uz (/ )
+- ``: N 
+- ``: V E
 
-#### Example API Calls
+#### E API C
 
-**Get users with search:**
-```javascript
-const response = await fetch('/api/v1/users?page=1&page_size=20&query=john&department=Engineering', {
-  headers
-});
-const data = await response.json();
+**G   :**
+```
+  =  ('///?=&_z=&y=&=E', 
+  
+);
+  =  .();
 ```
 
-**Update user information:**
-```javascript
-const response = await fetch(`/api/v1/users/${cid}`, {
-  method: 'PUT',
-  headers,
-  body: JSON.stringify({
-    department: 'Marketing',
-    role: 'Senior Manager'
-  })
-});
+**U  :**
+```
+  =  (`////`, 
+  : 'PUT',
+  ,
+  y: JSON.y(
+    : 'M',
+    : 'S M'
+  )
+);
 ```
 
-**Merge duplicate users:**
-```javascript
-const response = await fetch('/api/v1/users/merge', {
-  method: 'POST',
-  headers,
-  body: JSON.stringify({
-    source_cid: 'uuid-to-merge-from',
-    target_cid: 'uuid-to-merge-into',
-    merge_devices: true,
-    merge_accounts: true,
-    merge_groups: true
-  })
-});
+**M  :**
+```
+  =  ('////', 
+  : 'POST',
+  ,
+  y: JSON.y(
+    _: '---',
+    _: '---',
+    _: ,
+    _: ,
+    _: 
+  )
+);
 ```
 
-**Get compliance summary:**
-```javascript
-const response = await fetch('/api/v1/devices/non-compliant/summary', {
-  headers
-});
-// Returns users with non-compliant device counts
+**G  y:**
+```
+  =  ('////-/y', 
+  
+);
+// R   -  
 ```
 
-## Quick Start
+## Q S
 
-> **Frontend Developer?** See [FRONTEND_SETUP.md](FRONTEND_SETUP.md) for a streamlined setup guide!
+> ** D?** S [RONTEND_SETUP.](RONTEND_SETUP.)     !
 
-### 1. Set up the environment
+### . S   
 
-```bash
-# Clone or navigate to the project
-cd /home/chris/MVP
+```
+# C     
+ ///MVP
 
-# Create virtual environment
-python3.11 -m venv venv
-source venv/bin/activate
+# C  
+y. -  
+ //
 
-# Install dependencies
-pip install -r requirements.txt
+# I 
+  - .
 ```
 
-### 2. Configure environment
+### . C 
 
-```bash
-# Copy example environment file
-cp env.example .env
+```
+# Cy   
+ . .
 
-# Edit .env with your settings (optional, defaults work for local development)
+# E .  y  (,     )
 ```
 
-### 3. Start PostgreSQL
+### . S PSQL
 
-```bash
-# Start PostgreSQL with Docker Compose
-docker-compose up -d
+```
+# S PSQL  D C
+-  -
 
-# Wait for PostgreSQL to be ready
-docker-compose logs postgres
+# W  PSQL   y
+-  
 ```
 
-### 4. Run database migrations
+### . R  
 
-```bash
-# Run Alembic migrations
-alembic upgrade head
+```
+# R A 
+  
 ```
 
-### 5. Seed the database
+### . S  
 
-```bash
-# Populate with fake data (50 users)
-python seed_db.py
+```
+# P    ( )
+y _.y
 ```
 
-### 6. Start the API server
+### . S  API 
 
-```bash
-# Start the FastAPI server
-python -m backend.app.main
+```
+# S  API 
+y - ..
 
-# Server will be available at: http://localhost:8006
-# API documentation at: http://localhost:8006/docs
+# S    : ://:
+# API  : ://:/
 ```
 
-## Authentication
+## A
 
-All `/api/v1/users/*` endpoints require Bearer token authentication.
+A `////*`     .
 
-**Default token:** `demo-token-12345`
+**D :** `--`
 
-Example request:
-```bash
-curl -H "Authorization: Bearer demo-token-12345" http://localhost:8006/api/v1/users
+E :
+```
+ -H "Az:  --" ://:///
 ```
 
-## Database Schema
+## D S
 
-### CanonicalIdentity
-- Primary user identity with personal information
-- Fields: cid, email, department, full_name, role, status, etc.
+### CIy
+- Py  y   
+- : , , , _, , , .
 
-### Device
-- User devices with compliance tracking
-- Fields: id, name, last_seen, compliant, owner_cid
+### D
+- U    
+- : , , _, , _
 
-### GroupMembership
-- User group assignments
-- Fields: id, cid, group_name
+### GM
+- U  
+- : , , _
 
-### Account
-- External service accounts
-- Fields: id, service, status, user_email, cid
+### A
+- E  
+- : , , , _, 
 
-## Development
+## D
 
-### Running migrations
+### R 
 
-```bash
-# Create new migration
-alembic revision --autogenerate -m "description"
+```
+# C  
+  -- - ""
 
-# Apply migrations
-alembic upgrade head
+# Ay 
+  
 
-# Rollback migration
-alembic downgrade -1
+# R 
+  -
 ```
 
-### Database operations
+### D 
 
-```bash
-# Reset database and reseed
-docker-compose down -v
-docker-compose up -d
-alembic upgrade head
-python seed_db.py
+```
+# R   
+-  -
+-  -
+  
+y _.y
 ```
 
-## Environment Variables
+## E V
 
-| Variable | Default | Description |
+| V | D | D |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://postgres:password@localhost:5432/mvp_db` | PostgreSQL connection string |
-| `DEMO_API_TOKEN` | `demo-token-12345` | Bearer token for API authentication |
-| `ALLOWED_ORIGINS` | `http://localhost:5173` | CORS allowed origins (comma-separated) |
-| `APP_NAME` | `MVP Backend` | Application name |
-| `DEBUG` | `true` | Enable debug mode |
+| `DATAASE_URL` | `://:@:/_` | PSQL   |
+| `DEMO_API_TOKEN` | `--` |    API  |
+| `ALLOWED_ORIGINS` | `://:` | CORS   (-) |
+| `APP_NAME` | `MVP ` | A  |
+| `DEUG` | `` | E   |
 
-## Project Structure
+## P S
 
 ```
 MVP/
-├── backend/
-│   └── app/
-│       ├── db/
-│       │   ├── models.py      # SQLAlchemy models
-│       │   └── session.py     # Database session management
-│       ├── routers/
-│       │   └── users.py       # User API endpoints
-│       ├── security/
-│       │   └── auth.py        # Authentication logic
-│       ├── config.py          # Configuration management
-│       ├── main.py           # FastAPI application
-│       └── schemas.py        # Pydantic response models
-├── alembic/                  # Database migrations
-├── docker-compose.yml        # PostgreSQL setup
-├── requirements.txt          # Python dependencies
-├── seed_db.py               # Database seeding script
-└── env.example              # Environment template
+ /
+    /
+        /
+           .y      # SQLAy 
+           .y     # D  
+        /
+           .y       # U API 
+        y/
+           .y        # A 
+        .y          # C 
+        .y           # API 
+        .y        # Py  
+ /                  # D 
+ -.y        # PSQL 
+ .          # Py 
+ _.y               # D  
+ .              # E 
 ```
 
-## Production Deployment
+## P Dy
 
-### Railway (Recommended)
-See [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md) for complete Railway deployment guide.
+### Ry (R)
+S [RAILWAY_DEPLOY.](RAILWAY_DEPLOY.)   Ry y .
 
-**Quick Railway Setup:**
-```bash
-npm install -g @railway/cli
-railway login
-railway init
-railway add postgresql
-railway up
+**Q Ry S:**
+```
+  - @y/
+y 
+y 
+y  
+y 
 ```
 
-### Manual Deployment
-For other platforms:
+### M Dy
+  :
 
-1. Set `DEBUG=false` in environment variables
-2. Use a secure `DEMO_API_TOKEN`
-3. Configure proper `DATABASE_URL` for your PostgreSQL instance
-4. Set appropriate `ALLOWED_ORIGINS` for your frontend domain
-5. Use a production WSGI server like Gunicorn:
+. S `DEUG=`   
+. U   `DEMO_API_TOKEN`
+. C  `DATAASE_URL`  y PSQL 
+. S  `ALLOWED_ORIGINS`  y  
+. U   WSGI   G:
 
-```bash
-pip install gunicorn
-gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend.app.main:app --bind 0.0.0.0:8006
+```
+  
+ -  - ..UW ..: -- ...:
 ```

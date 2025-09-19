@@ -67,7 +67,7 @@ def authorize(
     </head>
     <body>
         <div class="login-form">
-            <h2>🔐 Mock OAuth Login</h2>
+            <h2> Mock OAuth Login</h2>
             <div class="info">
                 <strong>Demo OAuth Flow</strong><br>
                 Client: {client_id}<br>

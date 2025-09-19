@@ -1,185 +1,185 @@
-# Frontend Authentication Guide - Bearer Tokens Required
+#  A G -  T R
 
-## The Issue: "Not authenticated" Error
+## T I: "N " E
 
-Your frontend developer is getting "Not authenticated" because **ALL API endpoints require Bearer token authentication**.
+Y     "N "  **ALL API     **.
 
-## Which Endpoints Need Auth?
+## W E N A?
 
 ### NO AUTH REQUIRED:
-- `GET /` (root)
-- `GET /health` (legacy Railway health check)  
-- `GET /v1/health` (versioned health check)
-- `GET /oauth/*` (OAuth endpoints)
+- `GET /` ()
+- `GET /` (y Ry  )  
+- `GET //` (  )
+- `GET //*` (OA )
 
-### AUTH REQUIRED (Bearer Token):
-- `GET /v1/users`
-- `GET /v1/devices` 
-- `GET /v1/apis`
-- `GET /v1/policies`
-- `GET /v1/history`
-- `POST /v1/apis`
-- `PUT /v1/apis/{id}`
-- `DELETE /v1/apis/{id}`
-- **ALL other v1 endpoints**
+### AUTH REQUIRED ( T):
+- `GET //`
+- `GET //` 
+- `GET //`
+- `GET //`
+- `GET //y`
+- `POST //`
+- `PUT ///`
+- `DELETE ///`
+- **ALL   **
 
-## Authentication Methods
+## A M
 
-### Option 1: Demo Token (Quick Testing)
-```javascript
-const headers = {
-  'Authorization': 'Bearer token 21700',
-  'Content-Type': 'application/json'
-};
+### O : D T (Q T)
+```
+  = 
+  'Az': '  ',
+  'C-Ty': '/'
+;
 
-fetch('https://api.privion.tech/v1/users', { headers })
-  .then(r => r.json())
-  .then(console.log);
+('://..//',   )
+  .( => .())
+  .(.);
 ```
 
-### Option 2: OAuth Token (Production)
-```javascript
-// After OAuth flow (see frontend_oauth_example.html)
-const oauthToken = localStorage.getItem('oauth_access_token');
-const headers = {
-  'Authorization': `Bearer ${oauthToken}`,
-  'Content-Type': 'application/json'
-};
+### O : OA T (P)
+```
+// A OA  ( __.)
+ T = S.I('__');
+  = 
+  'Az': ` T`,
+  'C-Ty': '/'
+;
 
-fetch('https://api.privion.tech/v1/users', { headers })
-  .then(r => r.json())
-  .then(console.log);
+('://..//',   )
+  .( => .())
+  .(.);
 ```
 
-## Common Mistakes
+## C M
 
-### WRONG - No Authorization Header:
-```javascript
-fetch('https://api.privion.tech/v1/users')  // Returns: {"detail":"Not authenticated"}
+### WRONG - N Az H:
+```
+('://..//')  // R: "":"N "
 ```
 
-### WRONG - Missing "Bearer ":
-```javascript
-headers: { 'Authorization': 'token 21700' }  // Missing "Bearer " prefix
+### WRONG - M " ":
+```
+:  'Az': ' '   // M " " 
 ```
 
-### WRONG - Wrong Header Name:
-```javascript
-headers: { 'Auth': 'Bearer token 21700' }     // Should be "Authorization"
-headers: { 'X-API-Key': 'token 21700' }       // Wrong header type
+### WRONG - W H N:
+```
+:  'A': '  '      // S  "Az"
+:  'X-API-Ky': ' '        // W  y
 ```
 
-### CORRECT - Proper Bearer Token:
-```javascript
-headers: { 'Authorization': 'Bearer token 21700' }  // ✅ Works!
+### CORRECT - P  T:
+```
+:  'Az': '  '   //  W!
 ```
 
-## Testing Commands
+## T C
 
-### Test Without Auth (Will Fail):
-```bash
-curl https://api.privion.tech/v1/users
-# Returns: {"detail":"Not authenticated"}
+### T W A (W ):
+```
+ ://..//
+# R: "":"N "
 ```
 
-### Test With Auth (Will Work):
-```bash
-curl -H "Authorization: Bearer token 21700" https://api.privion.tech/v1/users
-# Returns: {"users": [...], "total": 50, ...}
+### T W A (W W):
+```
+ -H "Az:   " ://..//
+# R: "": [...], "": , ...
 ```
 
-## Frontend Implementation Examples
+##  I E
 
-### Fetch API:
-```javascript
-const API_BASE_URL = 'https://api.privion.tech';
-const AUTH_TOKEN = 'token 21700'; // or OAuth token
+###  API:
+```
+ API_ASE_URL = '://..';
+ AUTH_TOKEN = ' '; //  OA 
 
-async function apiCall(endpoint, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `Bearer ${AUTH_TOKEN}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
-  });
+y  C(,  = ) 
+    =  (`API_ASE_URL`, 
+    ...,
+    : 
+      'Az': ` AUTH_TOKEN`,
+      'C-Ty': '/',
+      ....
+    
+  );
   
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.status} - ${response.statusText}`);
-  }
+   (!.) 
+      E(`API E: . - .T`);
   
-  return response.json();
-}
+  
+   .();
 
-// Usage:
-const users = await apiCall('/v1/users');
-const devices = await apiCall('/v1/devices');
+
+// U:
+  =  C('//');
+  =  C('//');
 ```
 
-### Axios:
-```javascript
-import axios from 'axios';
+### A:
+```
+   '';
 
-const api = axios.create({
-  baseURL: 'https://api.privion.tech',
-  headers: {
-    'Authorization': 'Bearer token 21700',
-    'Content-Type': 'application/json'
-  }
-});
+  = .(
+  URL: '://..',
+  : 
+    'Az': '  ',
+    'C-Ty': '/'
+  
+);
 
-// Usage:
-const users = await api.get('/v1/users');
-const devices = await api.get('/v1/devices');
+// U:
+  =  .('//');
+  =  .('//');
 ```
 
-### React Hook:
-```javascript
-import { useState, useEffect } from 'react';
+### R H:
+```
+  S, E   '';
 
-function useAPI(endpoint) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+ API() 
+   [, D] = S();
+   [, L] = S();
+   [, E] = S();
 
-  useEffect(() => {
-    fetch(`https://api.privion.tech${endpoint}`, {
-      headers: {
-        'Authorization': 'Bearer token 21700',
-        'Content-Type': 'application/json'
-      }
-    })
-    .then(r => r.json())
-    .then(setData)
-    .catch(setError)
-    .finally(() => setLoading(false));
-  }, [endpoint]);
+  E(() => 
+    (`://..`, 
+      : 
+        'Az': '  ',
+        'C-Ty': '/'
+      
+    )
+    .( => .())
+    .(D)
+    .(E)
+    .y(() => L());
+  , []);
 
-  return { data, loading, error };
-}
+    , ,  ;
 
-// Usage:
-const { data: users } = useAPI('/v1/users');
+
+// U:
+  :   = API('//');
 ```
 
-## Quick Fix for Testing
+## Q   T
 
-**Tell your frontend developer to add this to EVERY API request:**
+**T y       EVERY API :**
 
-```javascript
-headers: {
-  'Authorization': 'Bearer token 21700'
-}
+```
+: 
+  'Az': '  '
+
 ```
 
-## Summary
+## Sy
 
-1. **ALL `/v1/*` endpoints require Bearer tokens**
-2. **Use exact format**: `Authorization: Bearer token 21700`
-3. **Health check works without auth**: `/v1/health` (no Bearer token needed)
-4. **OAuth available**: Use `frontend_oauth_example.html` for OAuth flow
+. **ALL `//*`    **
+. **U  **: `Az:   `
+. **H    **: `//` (   )
+. **OA **: U `__.`  OA 
 
-The "Not authenticated" error will disappear once Bearer tokens are added to requests!
+T "N "          !
 
-**Environment Variable**: You can change the token by setting `DEMO_API_TOKEN=your-custom-token` in your environment.
+**E V**: Y     y  `DEMO_API_TOKEN=y--`  y .
