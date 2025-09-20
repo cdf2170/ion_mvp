@@ -304,6 +304,24 @@ def create_app() -> FastAPI:
                 detail=f"Seeding error: {str(e)}"
             )
     
+    @app.post("/v1/admin/fix-database")
+    def fix_database(_: str = Depends(verify_token)):
+        """TEMPORARY: Add missing group columns to Railway database"""
+        try:
+            from backend.app.db.session import engine
+            from sqlalchemy import text
+            
+            with engine.connect() as conn:
+                # Add the missing columns
+                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS group_type VARCHAR"))
+                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS description VARCHAR"))
+                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS source_system VARCHAR"))
+                conn.commit()
+            
+            return {"message": "Database fixed - missing columns added"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Fix error: {str(e)}")
+    
     return app
 
 
