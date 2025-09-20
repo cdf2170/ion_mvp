@@ -5,7 +5,8 @@ from uuid import UUID
 from backend.app.db.models import (
     StatusEnum, DeviceStatusEnum, DeviceTagEnum, PolicyTypeEnum, 
     PolicySeverityEnum, ConfigChangeTypeEnum, ActivityTypeEnum,
-    APIProviderEnum, APIConnectionStatusEnum, APIConnectionTagEnum
+    APIProviderEnum, APIConnectionStatusEnum, APIConnectionTagEnum,
+    GroupTypeEnum
 )
 
 
@@ -73,16 +74,22 @@ class DeviceSchema(BaseModel):
 
 class GroupMembershipSchema(BaseModel):
     """
-    User group membership schema.
+    User group membership schema with enhanced context.
     
     Attributes:
         id: Unique membership identifier
-        group_name: Name of the group (e.g., "Developers", "Managers")
+        group_name: Name of the group (e.g., "Engineering Team", "Senior Developers")
+        group_type: Type/category of group (Department, Role, Access Level, etc.)
+        description: Optional description of what this group is for
+        source_system: Which system this group came from (Okta, AD, etc.)
     """
     model_config = ConfigDict(from_attributes=True)
     
     id: UUID = Field(..., description="Unique membership identifier")
     group_name: str = Field(..., description="Name of the group")
+    group_type: GroupTypeEnum = Field(..., description="Type/category of group")
+    description: Optional[str] = Field(None, description="Description of what this group is for")
+    source_system: Optional[str] = Field(None, description="Which system this group came from")
 
 
 class AccountSchema(BaseModel):

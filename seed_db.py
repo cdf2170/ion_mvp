@@ -18,7 +18,7 @@ sys.path.append(str(project_root))
 from backend.app.db.session import SessionLocal, create_tables
 from backend.app.db.models import (
     CanonicalIdentity, Device, GroupMembership, Account, StatusEnum,
-    DeviceStatusEnum, DeviceTagEnum, DeviceTag,
+    DeviceStatusEnum, DeviceTagEnum, DeviceTag, GroupTypeEnum,
     Policy, PolicyTypeEnum, PolicySeverityEnum,
     ConfigHistory, ConfigChangeTypeEnum,
     ActivityHistory, ActivityTypeEnum,
@@ -67,15 +67,76 @@ def seed_database():
             "UX Designer", "Product Designer", "Customer Success Manager", "Support Specialist"
         ]
         
-        device_types = [
-            "MacBook Pro", "MacBook Air", "ThinkPad", "Surface Laptop", 
-            "iPhone", "iPad", "Samsung Galaxy", "Desktop PC"
+        # Realistic corporate device naming patterns
+        device_naming_patterns = [
+            # Corporate asset tag style
+            {"pattern": "CORP-LAP-{:06d}", "types": ["MacBook Pro", "MacBook Air", "ThinkPad X1", "Surface Laptop"]},
+            {"pattern": "CORP-DT-{:06d}", "types": ["Dell OptiPlex", "HP EliteDesk", "Mac Studio", "Workstation PC"]},
+            {"pattern": "CORP-MOB-{:06d}", "types": ["iPhone 15 Pro", "iPhone 14", "Samsung Galaxy S24", "iPad Pro"]},
+            
+            # Location-based naming
+            {"pattern": "SF-ENG-{:04d}", "types": ["MacBook Pro", "ThinkPad X1", "Surface Laptop"]},
+            {"pattern": "NYC-FIN-{:04d}", "types": ["Dell Latitude", "Surface Pro", "MacBook Air"]},
+            {"pattern": "LA-MKT-{:04d}", "types": ["MacBook Pro", "iMac", "Surface Studio"]},
+            
+            # Department-based naming
+            {"pattern": "DEV-WS-{:03d}", "types": ["MacBook Pro 16\"", "ThinkPad P1", "Mac Studio", "Gaming PC"]},
+            {"pattern": "EXEC-{:03d}", "types": ["MacBook Pro", "iPad Pro", "iPhone 15 Pro"]},
+            {"pattern": "HR-LAPTOP-{:03d}", "types": ["MacBook Air", "Surface Laptop", "ThinkPad T14"]},
+            
+            # Generic asset tags
+            {"pattern": "ASSET-{:08d}", "types": ["Various Models"]},
+            {"pattern": "IT-{:05d}", "types": ["MacBook Pro", "ThinkPad", "Surface Laptop", "Desktop PC"]},
+            {"pattern": "WS-{:06d}", "types": ["Workstation", "Desktop PC", "Mac Pro"]},
         ]
         
-        group_names = [
-            "Developers", "Managers", "Sales Team", "Marketing Team", "Finance Team",
-            "HR Team", "IT Team", "Executive", "Remote Workers", "Full-time",
-            "Part-time", "Contractors", "Security Team", "Design Team", "Support Team"
+        # Enhanced groups with types and context
+        groups_data = [
+            # Department groups
+            {"name": "Engineering Department", "type": "DEPARTMENT", "description": "All engineering staff", "source": "HR System"},
+            {"name": "Marketing Department", "type": "DEPARTMENT", "description": "Marketing and communications team", "source": "HR System"},
+            {"name": "Sales Department", "type": "DEPARTMENT", "description": "Sales and business development", "source": "HR System"},
+            {"name": "Finance Department", "type": "DEPARTMENT", "description": "Finance and accounting team", "source": "HR System"},
+            {"name": "IT Department", "type": "DEPARTMENT", "description": "Information technology team", "source": "HR System"},
+            
+            # Role-based groups
+            {"name": "Senior Engineers", "type": "ROLE", "description": "Senior level engineering roles", "source": "Okta"},
+            {"name": "Engineering Managers", "type": "ROLE", "description": "Engineering management roles", "source": "Okta"},
+            {"name": "Directors", "type": "ROLE", "description": "Director level positions", "source": "Okta"},
+            {"name": "VPs", "type": "ROLE", "description": "Vice President level positions", "source": "Okta"},
+            
+            # Access level groups
+            {"name": "Admin Access", "type": "ACCESS_LEVEL", "description": "Administrative system access", "source": "Active Directory"},
+            {"name": "Developer Access", "type": "ACCESS_LEVEL", "description": "Development environment access", "source": "Active Directory"},
+            {"name": "Production Access", "type": "ACCESS_LEVEL", "description": "Production system access", "source": "Active Directory"},
+            {"name": "Financial Data Access", "type": "ACCESS_LEVEL", "description": "Access to financial systems", "source": "Active Directory"},
+            
+            # Location groups
+            {"name": "San Francisco Office", "type": "LOCATION", "description": "SF office employees", "source": "HR System"},
+            {"name": "New York Office", "type": "LOCATION", "description": "NYC office employees", "source": "HR System"},
+            {"name": "Remote Workers", "type": "LOCATION", "description": "Fully remote employees", "source": "HR System"},
+            {"name": "Hybrid Workers", "type": "LOCATION", "description": "Hybrid work arrangement", "source": "HR System"},
+            
+            # Project groups
+            {"name": "Project Alpha", "type": "PROJECT", "description": "Alpha project team members", "source": "Jira"},
+            {"name": "Project Beta", "type": "PROJECT", "description": "Beta project team members", "source": "Jira"},
+            {"name": "Infrastructure Team", "type": "PROJECT", "description": "Infrastructure and DevOps", "source": "Jira"},
+            
+            # Security clearance
+            {"name": "Security Cleared", "type": "SECURITY_CLEARANCE", "description": "Employees with security clearance", "source": "Security System"},
+            {"name": "PCI Compliance", "type": "SECURITY_CLEARANCE", "description": "PCI compliance training completed", "source": "Security System"},
+            
+            # Employment type
+            {"name": "Full-time Employees", "type": "EMPLOYMENT_TYPE", "description": "Full-time permanent staff", "source": "HR System"},
+            {"name": "Contractors", "type": "EMPLOYMENT_TYPE", "description": "Contract workers", "source": "HR System"},
+            {"name": "Interns", "type": "EMPLOYMENT_TYPE", "description": "Intern positions", "source": "HR System"},
+            
+            # Team groups
+            {"name": "Frontend Team", "type": "TEAM", "description": "Frontend development team", "source": "Slack"},
+            {"name": "Backend Team", "type": "TEAM", "description": "Backend development team", "source": "Slack"},
+            {"name": "DevOps Team", "type": "TEAM", "description": "DevOps and infrastructure team", "source": "Slack"},
+            {"name": "Design Team", "type": "TEAM", "description": "UX/UI design team", "source": "Slack"},
+            {"name": "QA Team", "type": "TEAM", "description": "Quality assurance team", "source": "Slack"},
         ]
         
         services = [
@@ -105,43 +166,105 @@ def seed_database():
             db.flush()  # Get the CID
             users.append(user)
             
-            # Create 1-4 devices per user
+            # Create 1-4 devices per user with realistic corporate naming
             num_devices = random.randint(1, 4)
-            for _ in range(num_devices):
-                # Use first name only to demonstrate the improvement feature
+            for device_num in range(num_devices):
+                # Choose a random naming pattern
+                naming_pattern = random.choice(device_naming_patterns)
+                
+                # Generate realistic corporate device name
+                asset_number = random.randint(1, 999999)
+                device_name = naming_pattern["pattern"].format(asset_number)
+                
+                # Choose device type based on naming pattern
+                device_type = random.choice(naming_pattern["types"])
+                
+                # More realistic OS versions based on device type
+                if "MacBook" in device_type or "Mac" in device_type or "iMac" in device_type:
+                    os_options = ["macOS 14.2 Sonoma", "macOS 13.6 Ventura", "macOS 14.1 Sonoma"]
+                elif "iPhone" in device_type:
+                    os_options = ["iOS 17.2", "iOS 17.1", "iOS 16.7"]
+                elif "iPad" in device_type:
+                    os_options = ["iPadOS 17.2", "iPadOS 17.1", "iPadOS 16.7"]
+                elif "Samsung" in device_type:
+                    os_options = ["Android 14", "Android 13", "Android 12"]
+                else:
+                    os_options = ["Windows 11 Pro 23H2", "Windows 11 Enterprise", "Windows 10 Enterprise LTSC", "Ubuntu 22.04 LTS"]
+                
                 device = Device(
-                    name=f"{user.full_name.split()[0] if user.full_name else fake.first_name()}'s {random.choice(device_types)}",
+                    name=device_name,
                     last_seen=fake.date_time_between(start_date='-7d', end_date='now'),
-                    compliant=random.choice([True, False]) if random.random() > 0.8 else True,
+                    compliant=random.choice([True, False]) if random.random() > 0.15 else True,  # Most devices compliant
                     owner_cid=user.cid,
                     ip_address=fake.ipv4_private(),
                     mac_address=fake.mac_address(),
-                    vlan=random.choice(["VLAN_100", "VLAN_200", "VLAN_300", "DMZ", "GUEST"]),
-                    os_version=random.choice([
-                        "Windows 11 Pro", "Windows 10 Enterprise", "macOS 14.1", "macOS 13.6",
-                        "Ubuntu 22.04", "iOS 17.1", "Android 14", "iPadOS 17.1"
+                    vlan=random.choice([
+                        "VLAN_100_CORPORATE", "VLAN_200_GUEST", "VLAN_300_SECURE", 
+                        "VLAN_400_BYOD", "DMZ_ZONE", "QUARANTINE_VLAN"
                     ]),
+                    os_version=random.choice(os_options),
                     last_check_in=fake.date_time_between(start_date='-24h', end_date='now'),
-                    status=random.choice([DeviceStatusEnum.CONNECTED, DeviceStatusEnum.DISCONNECTED, DeviceStatusEnum.UNKNOWN])
+                    status=random.choice([
+                        DeviceStatusEnum.CONNECTED, DeviceStatusEnum.CONNECTED, DeviceStatusEnum.CONNECTED,  # More likely to be connected
+                        DeviceStatusEnum.DISCONNECTED, DeviceStatusEnum.UNKNOWN
+                    ])
                 )
                 db.add(device)
                 db.flush()  # Get device ID
                 
-                # Add 1-3 random tags to each device
-                num_tags = random.randint(1, 3)
-                available_tags = list(DeviceTagEnum)
-                selected_tags = random.sample(available_tags, min(num_tags, len(available_tags)))
-                for tag_enum in selected_tags:
+                # Add contextual tags based on device name and user
+                tags_to_add = []
+                
+                # Location-based tags
+                if "SF-" in device_name or "San Francisco" in user.location:
+                    tags_to_add.append(DeviceTagEnum.ON_SITE)
+                elif "NYC-" in device_name or "Remote" in user.location:
+                    tags_to_add.append(DeviceTagEnum.REMOTE)
+                else:
+                    tags_to_add.append(random.choice([DeviceTagEnum.REMOTE, DeviceTagEnum.ON_SITE]))
+                
+                # Role-based tags
+                if "Executive" in user.role or "VP" in user.role or "Director" in user.role:
+                    tags_to_add.append(DeviceTagEnum.EXECUTIVE)
+                elif "Senior" in user.role or "Manager" in user.role:
+                    tags_to_add.append(DeviceTagEnum.SLT)
+                
+                # Device type tags
+                if "EXEC-" in device_name or "Executive" in user.role:
+                    tags_to_add.append(DeviceTagEnum.VIP)
+                elif "DEV-" in device_name or "Engineer" in user.role:
+                    tags_to_add.append(DeviceTagEnum.PRODUCTION)
+                elif "CORP-" in device_name:
+                    tags_to_add.append(DeviceTagEnum.CORPORATE)
+                else:
+                    tags_to_add.append(random.choice([DeviceTagEnum.CORPORATE, DeviceTagEnum.BYOD]))
+                
+                # Employment type tags
+                if "Contractor" in user.role or "Contract" in user.role:
+                    tags_to_add.append(DeviceTagEnum.CONTRACT)
+                else:
+                    tags_to_add.append(DeviceTagEnum.FULL_TIME)
+                
+                # Add some random variation
+                if random.random() > 0.7:  # 30% chance
+                    tags_to_add.append(random.choice([DeviceTagEnum.TESTING, DeviceTagEnum.PRODUCTION]))
+                
+                # Remove duplicates and add tags
+                unique_tags = list(set(tags_to_add))
+                for tag_enum in unique_tags:
                     tag = DeviceTag(device_id=device.id, tag=tag_enum)
                     db.add(tag)
             
-            # Create 2-5 group memberships per user
-            num_groups = random.randint(2, 5)
-            selected_groups = random.sample(group_names, num_groups)
-            for group_name in selected_groups:
+            # Create 3-7 group memberships per user with enhanced context
+            num_groups = random.randint(3, 7)
+            selected_groups = random.sample(groups_data, num_groups)
+            for group_data in selected_groups:
                 membership = GroupMembership(
                     cid=user.cid,
-                    group_name=group_name
+                    group_name=group_data["name"],
+                    group_type=GroupTypeEnum[group_data["type"]],
+                    description=group_data["description"],
+                    source_system=group_data["source"]
                 )
                 db.add(membership)
             

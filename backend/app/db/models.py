@@ -92,12 +92,26 @@ class DeviceTag(Base):
     device = relationship("Device", back_populates="tags")
 
 
+class GroupTypeEnum(enum.Enum):
+    DEPARTMENT = "Department"
+    ROLE = "Role"
+    ACCESS_LEVEL = "Access Level"
+    LOCATION = "Location"
+    PROJECT = "Project"
+    SECURITY_CLEARANCE = "Security Clearance"
+    EMPLOYMENT_TYPE = "Employment Type"
+    TEAM = "Team"
+
+
 class GroupMembership(Base):
     __tablename__ = "group_memberships"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cid = Column(UUID(as_uuid=True), ForeignKey("canonical_identities.cid"), nullable=False)
     group_name = Column(String, nullable=False)
+    group_type = Column(SQLEnum(GroupTypeEnum), nullable=False, default=GroupTypeEnum.TEAM)
+    description = Column(String)  # Optional description of what this group is for
+    source_system = Column(String)  # Which system this group came from (Okta, AD, etc.)
     
     # Relationships
     identity = relationship("CanonicalIdentity", back_populates="group_memberships")
