@@ -65,7 +65,7 @@ def get_devices(
     - Use this to build device dashboards and compliance reports
     - Supports filtering by compliance status, connection status, owner, and multiple tags
     - Enhanced search works on device names, IP addresses, MAC addresses, owner info, tags, and groups
-    - Multiple tags filtering: use comma-separated values (e.g., "Remote,VIP" or "On-Site,Corporate") - shows devices with ANY of the tags
+    - Multiple tags filtering: use comma-separated values (e.g., "Remote,VIP" or "On-Site,Corporate") - shows devices with EXACTLY these tags and no others
     - Supports sorting by any column with direction control
     - Returns pagination info for infinite scroll or page navigation
     
@@ -116,11 +116,22 @@ def get_devices(
                     break
         
         if valid_tags:
-            # Filter devices that have ANY of the specified tags (OR logic)
+            # Filter devices that have EXACTLY the specified tags (exclusive filtering)
+            # First, get devices that have all the required tags
             tag_device_ids = db.query(DeviceTag.device_id).filter(
                 DeviceTag.tag.in_(valid_tags)
-            ).distinct()
-            base_query = base_query.filter(Device.id.in_(tag_device_ids))
+            ).group_by(DeviceTag.device_id).having(
+                func.count(DeviceTag.tag.distinct()) == len(valid_tags)
+            )
+            
+            # Then, get devices that have ONLY these tags (no additional tags)
+            devices_with_only_these_tags = db.query(DeviceTag.device_id).filter(
+                DeviceTag.device_id.in_(tag_device_ids)
+            ).group_by(DeviceTag.device_id).having(
+                func.count(DeviceTag.tag) == len(valid_tags)
+            )
+            
+            base_query = base_query.filter(Device.id.in_(devices_with_only_these_tags))
     
     # We always join with CanonicalIdentity for owner information
     # (This was already done at the beginning of the function)
