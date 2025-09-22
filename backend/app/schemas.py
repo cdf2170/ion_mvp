@@ -62,6 +62,8 @@ class DeviceSchema(BaseModel):
     last_check_in: datetime = Field(..., description="Last time device checked in")
     status: DeviceStatusEnum = Field(..., description="Connection status")
     tags: List[DeviceTagSchema] = Field(default=[], description="List of device tags")
+    groups: List[str] = Field(default=[], description="Groups that the device owner belongs to")
+    policies: List[str] = Field(default=[], description="Policies that apply to this device/user")
     
     @field_validator('ip_address', mode='before')
     @classmethod

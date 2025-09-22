@@ -7,7 +7,7 @@ from uuid import UUID
 from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership
+from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy
 from backend.app.schemas import (
     DeviceSchema,
     DeviceListResponse,
@@ -214,6 +214,19 @@ def get_devices(
             "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
         })
         
+        # Add groups and policies
+        if hasattr(device, 'owner') and device.owner:
+            # Get user's group memberships
+            user_groups = db.query(GroupMembership).filter(GroupMembership.cid == device.owner.cid).all()
+            device_dict["groups"] = [f"{group.group_name} ({group.group_type.value})" for group in user_groups]
+            
+            # Get policies (simplified - showing policy names that might apply)
+            policies = db.query(Policy).filter(Policy.enabled == True).all()
+            device_dict["policies"] = [policy.name for policy in policies[:5]]  # Show first 5 active policies
+        else:
+            device_dict["groups"] = []
+            device_dict["policies"] = []
+        
         device_schemas.append(DeviceSchema.model_validate(device_dict))
     
     return DeviceListResponse(
@@ -280,6 +293,19 @@ def get_device_detail(
         "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
         "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
     })
+    
+    # Add groups and policies
+    if hasattr(device, 'owner') and device.owner:
+        # Get user's group memberships
+        user_groups = db.query(GroupMembership).filter(GroupMembership.cid == device.owner.cid).all()
+        device_dict["groups"] = [f"{group.group_name} ({group.group_type.value})" for group in user_groups]
+        
+        # Get policies (simplified - showing policy names that might apply)
+        policies = db.query(Policy).filter(Policy.enabled == True).all()
+        device_dict["policies"] = [policy.name for policy in policies[:5]]  # Show first 5 active policies
+    else:
+        device_dict["groups"] = []
+        device_dict["policies"] = []
     
     return DeviceSchema.model_validate(device_dict)
 
