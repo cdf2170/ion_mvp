@@ -340,6 +340,31 @@ def create_app() -> FastAPI:
                 detail=f"Seeding error: {str(e)}"
             )
     
+    @app.post("/v1/admin/run-migration")
+    def run_migration_admin(_: str = Depends(verify_token)):
+        """Run database migration and seeding for access management tables"""
+        try:
+            import subprocess
+            import sys
+            
+            # Run the migration script
+            result = subprocess.run([sys.executable, "run_migration.py"], 
+                                  capture_output=True, text=True, cwd="/app")
+            
+            if result.returncode == 0:
+                return {
+                    "status": "success",
+                    "message": "Database migration completed successfully",
+                    "output": result.stdout
+                }
+            else:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Migration failed: {result.stderr}"
+                )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error running migration: {str(e)}")
+    
     @app.post("/v1/admin/fix-database")
     def fix_database(_: str = Depends(verify_token)):
         """TEMPORARY: Add missing group columns to Railway database"""
