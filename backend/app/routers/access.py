@@ -4,7 +4,7 @@ from sqlalchemy import func, and_, or_, asc, desc, text
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 from backend.app.db.session import get_db
@@ -250,7 +250,7 @@ def get_access_grants(
     
     # Time-based filters
     if expires_within_days is not None:
-        expiry_threshold = datetime.utcnow() + timedelta(days=expires_within_days)
+        expiry_threshold = datetime.now(timezone.utc) + timedelta(days=expires_within_days)
         base_query = base_query.filter(
             and_(
                 AccessGrant.expires_at.isnot(None),
@@ -259,7 +259,7 @@ def get_access_grants(
         )
     
     if needs_review:
-        review_threshold = datetime.utcnow()
+        review_threshold = datetime.now(timezone.utc)
         base_query = base_query.filter(
             or_(
                 AccessGrant.next_review_due <= review_threshold,
@@ -319,7 +319,7 @@ def get_access_grants(
     access_schemas = []
     for grant in access_grants:
         # Calculate time-based fields
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         days_since_granted = (now - grant.granted_at).days if grant.granted_at else None
         days_until_expiry = (grant.expires_at - now).days if grant.expires_at else None
         days_since_review = (now - grant.last_reviewed_at).days if grant.last_reviewed_at else None
@@ -392,7 +392,7 @@ def get_access_grants(
     total_emergency = summary_query.filter(AccessGrant.is_emergency_access == True).count()
     
     # Expiring soon (next 30 days)
-    expiry_threshold = datetime.utcnow() + timedelta(days=30)
+    expiry_threshold = datetime.now(timezone.utc) + timedelta(days=30)
     expiring_soon = summary_query.filter(
         and_(
             AccessGrant.expires_at.isnot(None),
@@ -592,7 +592,7 @@ def get_audit_logs(
         "sealed_records": db.query(AccessAuditLog).filter(AccessAuditLog.is_sealed == True).count(),
         "signed_records": db.query(AccessAuditLog).filter(AccessAuditLog.signature.isnot(None)).count(),
         "integrity_verified": True,  # Would be actual verification in production
-        "last_integrity_check": datetime.utcnow().isoformat()
+        "last_integrity_check": datetime.now(timezone.utc).isoformat()
     }
     
     return AuditLogListResponse(
@@ -648,7 +648,7 @@ def get_user_access(
     # Convert to schemas (reuse logic from main endpoint)
     access_schemas = []
     for grant in access_grants:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         days_since_granted = (now - grant.granted_at).days if grant.granted_at else None
         days_until_expiry = (grant.expires_at - now).days if grant.expires_at else None
         days_since_review = (now - grant.last_reviewed_at).days if grant.last_reviewed_at else None
@@ -715,7 +715,7 @@ def get_user_access(
     total_revoked = len([g for g in access_grants if g.status == AccessStatusEnum.REVOKED])
     total_emergency = len([g for g in access_grants if g.is_emergency_access])
     
-    expiry_threshold = datetime.utcnow() + timedelta(days=30)
+    expiry_threshold = datetime.now(timezone.utc) + timedelta(days=30)
     expiring_soon = len([
         g for g in access_grants 
         if g.expires_at and g.expires_at <= expiry_threshold and g.status == AccessStatusEnum.ACTIVE
@@ -852,7 +852,7 @@ def get_user_audit_history(
             and_(AccessAuditLog.user_cid == cid, AccessAuditLog.signature.isnot(None))
         ).count(),
         "integrity_verified": True,
-        "last_integrity_check": datetime.utcnow().isoformat()
+        "last_integrity_check": datetime.now(timezone.utc).isoformat()
     }
     
     return AuditLogListResponse(
@@ -893,7 +893,7 @@ def get_access_summary(
     emergency_count = db.query(AccessGrant).filter(AccessGrant.is_emergency_access == True).count()
     
     # Expiring access (next 30 days)
-    expiry_threshold = datetime.utcnow() + timedelta(days=30)
+    expiry_threshold = datetime.now(timezone.utc) + timedelta(days=30)
     expiring_count = db.query(AccessGrant).filter(
         and_(
             AccessGrant.expires_at.isnot(None),
@@ -903,7 +903,7 @@ def get_access_summary(
     ).count()
     
     # Recent audit activity (last 24 hours)
-    recent_threshold = datetime.utcnow() - timedelta(hours=24)
+    recent_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
     recent_audit_count = db.query(AccessAuditLog).filter(
         AccessAuditLog.timestamp >= recent_threshold
     ).count()
@@ -943,7 +943,7 @@ def get_compliance_report(
     active_grants = grants_query.filter(AccessGrant.status == AccessStatusEnum.ACTIVE).count()
     
     # Get recent audit events for this compliance framework
-    recent_threshold = datetime.utcnow() - timedelta(days=90)
+    recent_threshold = datetime.now(timezone.utc) - timedelta(days=90)
     audit_events = db.query(AccessAuditLog).filter(
         and_(
             AccessAuditLog.compliance_tags.op('?')(framework),
@@ -956,7 +956,7 @@ def get_compliance_report(
         "total_access_grants": total_grants,
         "active_access_grants": active_grants,
         "recent_audit_events_90d": audit_events,
-        "report_generated_at": datetime.utcnow().isoformat()
+        "report_generated_at": datetime.now(timezone.utc).isoformat()
     }
     
     if include_details:
