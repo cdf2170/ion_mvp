@@ -123,6 +123,10 @@ def get_devices(
             ).distinct()
             
             base_query = base_query.filter(Device.id.in_(tag_device_ids))
+        else:
+            # If no valid tags were found, return empty results
+            # This prevents showing all devices when invalid tags are provided
+            base_query = base_query.filter(Device.id == None)
     
     # We always join with CanonicalIdentity for owner information
     # (This was already done at the beginning of the function)
