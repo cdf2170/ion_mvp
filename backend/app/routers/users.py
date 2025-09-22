@@ -35,6 +35,42 @@ from backend.app.security.auth import verify_token
 router = APIRouter(prefix="/users", tags=["users"])
 
 
+def get_devices_with_owner_info(db: Session, owner_cid: UUID) -> List[dict]:
+    """
+    Helper function to get devices with complete owner information.
+    Returns devices in consistent schema format across all endpoints.
+    """
+    devices = db.query(Device).join(CanonicalIdentity, Device.owner_cid == CanonicalIdentity.cid).filter(Device.owner_cid == owner_cid).all()
+    
+    device_list = []
+    for device in devices:
+        device_dict = {
+            "id": device.id,
+            "name": device.name,
+            "last_seen": device.last_seen,
+            "compliant": device.compliant,
+            "owner_cid": device.owner_cid,
+            "ip_address": str(device.ip_address) if device.ip_address else None,
+            "mac_address": device.mac_address,
+            "vlan": device.vlan,
+            "os_version": device.os_version,
+            "last_check_in": device.last_check_in,
+            "status": device.status,
+            "tags": device.tags
+        }
+        
+        # Add owner information (we have the join)
+        device_dict.update({
+            "owner_name": device.owner.full_name if hasattr(device, 'owner') and device.owner else None,
+            "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
+            "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
+        })
+        
+        device_list.append(device_dict)
+    
+    return device_list
+
+
 class UserSortBy(str, Enum):
     """Available columns for sorting users"""
     email = "email"
@@ -159,9 +195,13 @@ def get_user_detail(
             detail=f"User with CID {cid} not found"
         )
     
+    # Get devices with complete owner information using our helper function
+    devices_with_owner_info = get_devices_with_owner_info(db, cid)
+    
     # Transform the user data for response
     user_data = UserDetailSchema.model_validate(user)
     user_data.groups = user.group_memberships
+    user_data.devices = [DeviceSchema.model_validate(device) for device in devices_with_owner_info]
     
     return user_data
 

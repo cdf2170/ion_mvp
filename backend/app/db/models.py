@@ -1,10 +1,13 @@
-from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Enum as SQLEnum, Text
+from sqlalchemy import Column, String, DateTime, Boolean, ForeignKey, Enum as SQLEnum, Text, Integer, JSON
 from sqlalchemy.dialects.postgresql import UUID, INET
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 import enum
+import hashlib
+import hmac
+from datetime import datetime
 
 
 Base = declarative_base()
@@ -33,6 +36,62 @@ class DeviceTagEnum(enum.Enum):
     VIP = "VIP"
     TESTING = "Testing"
     PRODUCTION = "Production"
+
+
+class AccessTypeEnum(enum.Enum):
+    """Types of access that can be granted"""
+    SYSTEM_ACCESS = "System Access"
+    APPLICATION_ACCESS = "Application Access"
+    DATA_ACCESS = "Data Access"
+    NETWORK_ACCESS = "Network Access"
+    PHYSICAL_ACCESS = "Physical Access"
+    ADMINISTRATIVE_ACCESS = "Administrative Access"
+    API_ACCESS = "API Access"
+    DATABASE_ACCESS = "Database Access"
+
+
+class AccessStatusEnum(enum.Enum):
+    """Current status of access grants"""
+    ACTIVE = "Active"
+    REVOKED = "Revoked"
+    EXPIRED = "Expired"
+    SUSPENDED = "Suspended"
+    PENDING_APPROVAL = "Pending Approval"
+    PENDING_REVOCATION = "Pending Revocation"
+
+
+class AccessReasonEnum(enum.Enum):
+    """Reasons for access grants/revocations"""
+    # Grant reasons
+    JOB_REQUIREMENT = "Job Requirement"
+    PROJECT_ASSIGNMENT = "Project Assignment"
+    TEMPORARY_ASSIGNMENT = "Temporary Assignment"
+    ROLE_CHANGE = "Role Change"
+    EMERGENCY_ACCESS = "Emergency Access"
+    CONTRACTOR_ACCESS = "Contractor Access"
+    
+    # Revocation reasons
+    EMPLOYMENT_TERMINATED = "Employment Terminated"
+    ROLE_CHANGED = "Role Changed"
+    PROJECT_COMPLETED = "Project Completed"
+    ACCESS_NO_LONGER_NEEDED = "Access No Longer Needed"
+    SECURITY_VIOLATION = "Security Violation"
+    POLICY_VIOLATION = "Policy Violation"
+    EXPIRED_ACCESS = "Expired Access"
+    ADMIN_REVOCATION = "Administrative Revocation"
+
+
+class AuditActionEnum(enum.Enum):
+    """Types of audit actions"""
+    ACCESS_GRANTED = "Access Granted"
+    ACCESS_REVOKED = "Access Revoked"
+    ACCESS_MODIFIED = "Access Modified"
+    ACCESS_SUSPENDED = "Access Suspended"
+    ACCESS_RESTORED = "Access Restored"
+    ACCESS_REVIEWED = "Access Reviewed"
+    ACCESS_EXPIRED = "Access Expired"
+    EMERGENCY_ACCESS = "Emergency Access"
+    BULK_ACCESS_CHANGE = "Bulk Access Change"
 
 
 class CanonicalIdentity(Base):
@@ -358,3 +417,250 @@ class APISyncLog(Base):
     
     # Relationships
     connection = relationship("APIConnection")
+
+
+class AccessGrant(Base):
+    """
+    Core access grants table - tracks all access permissions granted to users.
+    This is the primary table for current access state.
+    """
+    __tablename__ = "access_grants"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Who has access
+    user_cid = Column(UUID(as_uuid=True), ForeignKey("canonical_identities.cid"), nullable=False)
+    
+    # What access
+    access_type = Column(SQLEnum(AccessTypeEnum), nullable=False)
+    resource_name = Column(String, nullable=False)  # e.g., "Production Database", "AWS Console", "Slack Admin"
+    resource_identifier = Column(String)  # e.g., server hostname, app ID, etc.
+    
+    # Access details
+    access_level = Column(String, nullable=False)  # e.g., "Read", "Write", "Admin", "Full Control"
+    permissions = Column(JSON)  # Detailed permissions object
+    
+    # Why access was granted
+    reason = Column(SQLEnum(AccessReasonEnum), nullable=False)
+    justification = Column(Text)  # Free text explanation
+    business_justification = Column(Text)  # Business case for access
+    
+    # When
+    granted_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime(timezone=True))  # NULL for permanent access
+    effective_start = Column(DateTime(timezone=True))  # For future-scheduled access
+    
+    # Who granted it
+    granted_by = Column(String, nullable=False)  # User who approved/granted
+    approved_by = Column(String)  # Manager/system who approved (if different)
+    source_system = Column(String)  # System that granted access (e.g., "Active Directory", "Manual")
+    
+    # Current status
+    status = Column(SQLEnum(AccessStatusEnum), nullable=False, default=AccessStatusEnum.ACTIVE)
+    
+    # Revocation info (filled when revoked)
+    revoked_at = Column(DateTime(timezone=True))
+    revoked_by = Column(String)
+    revocation_reason = Column(SQLEnum(AccessReasonEnum))
+    revocation_justification = Column(Text)
+    
+    # Review tracking
+    last_reviewed_at = Column(DateTime(timezone=True))
+    last_reviewed_by = Column(String)
+    next_review_due = Column(DateTime(timezone=True))
+    
+    # Emergency access tracking
+    is_emergency_access = Column(Boolean, default=False)
+    emergency_ticket = Column(String)  # Emergency ticket number
+    emergency_approver = Column(String)
+    
+    # Risk and compliance
+    risk_level = Column(String)  # "Low", "Medium", "High", "Critical"
+    compliance_tags = Column(JSON)  # SOX, PCI, GDPR, etc.
+    
+    # Audit fields
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    
+    # Relationships
+    user = relationship("CanonicalIdentity")
+    audit_logs = relationship("AccessAuditLog", back_populates="access_grant", cascade="all, delete-orphan")
+
+
+class AccessAuditLog(Base):
+    """
+    Immutable audit log for all access-related actions.
+    Each record is cryptographically signed to prevent tampering.
+    """
+    __tablename__ = "access_audit_logs"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Link to access grant (if applicable)
+    access_grant_id = Column(UUID(as_uuid=True), ForeignKey("access_grants.id"))
+    
+    # Core audit info
+    user_cid = Column(UUID(as_uuid=True), ForeignKey("canonical_identities.cid"), nullable=False)
+    action = Column(SQLEnum(AuditActionEnum), nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # What was acted upon
+    resource_name = Column(String, nullable=False)
+    resource_identifier = Column(String)
+    access_type = Column(SQLEnum(AccessTypeEnum), nullable=False)
+    access_level = Column(String)
+    
+    # Context of the action
+    performed_by = Column(String, nullable=False)  # Who performed the action
+    reason = Column(SQLEnum(AccessReasonEnum))
+    justification = Column(Text)
+    
+    # Before/after state for modifications
+    previous_state = Column(JSON)  # Previous access state
+    new_state = Column(JSON)  # New access state
+    
+    # Additional context
+    source_system = Column(String)
+    ip_address = Column(INET)
+    user_agent = Column(String)
+    session_id = Column(String)
+    request_id = Column(String)  # For tracing across systems
+    
+    # Emergency/special circumstances
+    is_emergency = Column(Boolean, default=False)
+    emergency_ticket = Column(String)
+    emergency_approver = Column(String)
+    
+    # Compliance and risk info
+    compliance_tags = Column(JSON)
+    risk_assessment = Column(String)
+    
+    # Cryptographic integrity
+    record_hash = Column(String, nullable=False)  # SHA-256 hash of record
+    previous_hash = Column(String)  # Hash of previous record for chaining
+    signature = Column(String)  # HMAC signature for integrity
+    
+    # Immutability enforcement
+    is_sealed = Column(Boolean, default=False)  # Once sealed, cannot be modified
+    sealed_at = Column(DateTime(timezone=True))
+    sealed_by = Column(String)
+    
+    # Relationships
+    user = relationship("CanonicalIdentity")
+    access_grant = relationship("AccessGrant", back_populates="audit_logs")
+    
+    def generate_record_hash(self):
+        """Generate SHA-256 hash of the record for integrity verification"""
+        # Create a deterministic string representation of the record
+        record_data = {
+            'id': str(self.id),
+            'user_cid': str(self.user_cid),
+            'action': self.action.value if self.action else None,
+            'timestamp': self.timestamp.isoformat() if self.timestamp else None,
+            'resource_name': self.resource_name,
+            'access_type': self.access_type.value if self.access_type else None,
+            'performed_by': self.performed_by,
+            'previous_state': self.previous_state,
+            'new_state': self.new_state
+        }
+        
+        # Sort keys for deterministic hash
+        record_string = str(sorted(record_data.items()))
+        return hashlib.sha256(record_string.encode()).hexdigest()
+    
+    def generate_signature(self, secret_key: str):
+        """Generate HMAC signature for the record"""
+        if not self.record_hash:
+            self.record_hash = self.generate_record_hash()
+        
+        return hmac.new(
+            secret_key.encode(),
+            self.record_hash.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+
+class AccessReview(Base):
+    """
+    Tracks access reviews and certifications - critical for compliance.
+    """
+    __tablename__ = "access_reviews"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Review details
+    review_period_start = Column(DateTime(timezone=True), nullable=False)
+    review_period_end = Column(DateTime(timezone=True), nullable=False)
+    review_type = Column(String, nullable=False)  # "Quarterly", "Annual", "Ad-hoc", "Emergency"
+    
+    # Scope
+    scope_description = Column(Text)
+    users_in_scope = Column(JSON)  # List of user CIDs
+    systems_in_scope = Column(JSON)  # List of systems/resources
+    
+    # Review status
+    status = Column(String, nullable=False)  # "In Progress", "Completed", "Overdue"
+    completion_percentage = Column(Integer, default=0)
+    
+    # Reviewers
+    primary_reviewer = Column(String, nullable=False)
+    secondary_reviewers = Column(JSON)  # List of additional reviewers
+    
+    # Results
+    total_access_reviewed = Column(Integer, default=0)
+    access_certified = Column(Integer, default=0)
+    access_revoked = Column(Integer, default=0)
+    access_flagged = Column(Integer, default=0)
+    
+    # Findings
+    findings = Column(JSON)  # Detailed findings and recommendations
+    exceptions = Column(JSON)  # Approved exceptions
+    
+    # Timing
+    started_at = Column(DateTime(timezone=True), server_default=func.now())
+    completed_at = Column(DateTime(timezone=True))
+    due_date = Column(DateTime(timezone=True))
+    
+    # Compliance
+    compliance_framework = Column(String)  # SOX, PCI, ISO27001, etc.
+    auditor_notes = Column(Text)
+    
+    # Audit trail
+    created_by = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AccessPattern(Base):
+    """
+    Machine learning insights into access patterns for anomaly detection.
+    """
+    __tablename__ = "access_patterns"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # Pattern details
+    user_cid = Column(UUID(as_uuid=True), ForeignKey("canonical_identities.cid"), nullable=False)
+    resource_name = Column(String, nullable=False)
+    
+    # Pattern metrics
+    access_frequency = Column(String)  # "Daily", "Weekly", "Monthly", "Rare"
+    typical_access_times = Column(JSON)  # Time patterns
+    typical_access_duration = Column(String)  # Average session length
+    access_locations = Column(JSON)  # Geographic/network patterns
+    
+    # Risk scoring
+    risk_score = Column(Integer)  # 0-100 risk score
+    anomaly_indicators = Column(JSON)  # List of unusual behaviors
+    
+    # ML model info
+    model_version = Column(String)
+    confidence_score = Column(String)  # Model confidence in the pattern
+    
+    # Timing
+    pattern_period_start = Column(DateTime(timezone=True))
+    pattern_period_end = Column(DateTime(timezone=True))
+    last_updated = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    user = relationship("CanonicalIdentity")

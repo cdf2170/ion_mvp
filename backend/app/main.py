@@ -62,6 +62,20 @@ except Exception as e:
     router_import_errors['oauth'] = str(e)
     routers_available['oauth'] = None
 
+try:
+    from backend.app.routers import groups
+    routers_available['groups'] = groups
+except Exception as e:
+    router_import_errors['groups'] = str(e)
+    routers_available['groups'] = None
+
+try:
+    from backend.app.routers import access
+    routers_available['access'] = access
+except Exception as e:
+    router_import_errors['access'] = str(e)
+    routers_available['access'] = None
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -132,6 +146,18 @@ def create_app() -> FastAPI:
         routers_included.append('oauth')
     else:
         routers_failed.append('oauth')
+    
+    if routers_available['groups']:
+        app.include_router(routers_available['groups'].router, prefix="/v1")
+        routers_included.append('groups')
+    else:
+        routers_failed.append('groups')
+    
+    if routers_available['access']:
+        app.include_router(routers_available['access'].router, prefix="/v1")
+        routers_included.append('access')
+    else:
+        routers_failed.append('access')
     
     @app.get("/")
     def root():
@@ -275,6 +301,16 @@ def create_app() -> FastAPI:
                     "url": "/v1/policies",
                     "methods": ["GET", "POST", "PUT", "DELETE"],
                     "description": "Manage security policies"
+                },
+                "groups": {
+                    "url": "/v1/groups",
+                    "methods": ["GET"],
+                    "description": "Manage departments and group memberships"
+                },
+                "access": {
+                    "url": "/v1/access",
+                    "methods": ["GET"],
+                    "description": "Comprehensive access management and audit trails"
                 }
             },
             "authentication": {

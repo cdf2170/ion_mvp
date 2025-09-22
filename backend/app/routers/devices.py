@@ -53,8 +53,8 @@ def get_devices(
     owner_cid: Optional[UUID] = FastAPIQuery(None, description="Filter by owner's canonical identity"),
     status: Optional[DeviceStatusEnum] = FastAPIQuery(None, description="Filter by connection status"),
     vlan: Optional[str] = FastAPIQuery(None, description="Filter by VLAN"),
-    tags: Optional[str] = FastAPIQuery(None, description="Filter by tags (comma-separated for multiple tags, e.g. 'LAPTOP,CORPORATE')"),
-    search_query: Optional[str] = FastAPIQuery(None, description="Search in device name, IP, MAC address, owner info, tags, or group"),
+    tags: Optional[str] = FastAPIQuery(None, description="Filter by tags (comma-separated for multiple tags, e.g. 'Remote,On-Site' or 'Corporate,VIP')"),
+    query: Optional[str] = FastAPIQuery(None, description="Search in device name, IP, MAC address, owner info, tags, or group"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
@@ -65,7 +65,7 @@ def get_devices(
     - Use this to build device dashboards and compliance reports
     - Supports filtering by compliance status, connection status, owner, and multiple tags
     - Enhanced search works on device names, IP addresses, MAC addresses, owner info, tags, and groups
-    - Multiple tags filtering: use comma-separated values (e.g., "REMOTE,VIP") - shows devices with ANY of the tags
+    - Multiple tags filtering: use comma-separated values (e.g., "Remote,VIP" or "On-Site,Corporate") - shows devices with ANY of the tags
     - Supports sorting by any column with direction control
     - Returns pagination info for infinite scroll or page navigation
     
@@ -78,8 +78,8 @@ def get_devices(
         owner_cid: Filter by owner's canonical identity
         status: Filter by connection status (Connected/Disconnected/Unknown)
         vlan: Filter by VLAN
-        tags: Filter by device tags (comma-separated for multiple tags)
-        search_query: Search term for device name, IP, MAC, owner info, tags, or group
+        tags: Filter by device tags (comma-separated for multiple tags, e.g. 'Remote,On-Site')
+        query: Search term for device name, IP, MAC, owner info, tags, or group
     
     Returns:
         Paginated list of devices with filtering and sorting applied
@@ -104,18 +104,16 @@ def get_devices(
     # Handle multiple tags filtering
     if tags:
         # Parse comma-separated tags
-        tag_list = [tag.strip().upper() for tag in tags.split(',') if tag.strip()]
+        tag_list = [tag.strip() for tag in tags.split(',') if tag.strip()]
         valid_tags = []
         
-        # Validate each tag
+        # Validate each tag by trying to match with enum values
         for tag_str in tag_list:
-            try:
-                # Convert string to enum
-                tag_enum = DeviceTagEnum(tag_str)
-                valid_tags.append(tag_enum)
-            except ValueError:
-                # Skip invalid tags
-                continue
+            # Try to find matching enum by value (case-insensitive)
+            for enum_item in DeviceTagEnum:
+                if enum_item.value.lower() == tag_str.lower():
+                    valid_tags.append(enum_item)
+                    break
         
         if valid_tags:
             # Filter devices that have ANY of the specified tags (OR logic)
@@ -127,45 +125,14 @@ def get_devices(
     # We always join with CanonicalIdentity for owner information
     # (This was already done at the beginning of the function)
     
-    # Enhanced search functionality
-    if search_query:
+    # Enhanced search functionality - simplified working version
+    if query and query.strip():
+        search_term = f"%{query.strip()}%"
         search_conditions = [
-            Device.name.ilike(f"%{search_query}%"),
-            Device.mac_address.ilike(f"%{search_query}%"),
-            Device.os_version.ilike(f"%{search_query}%"),
-            Device.vlan.ilike(f"%{search_query}%")
+            Device.name.ilike(search_term),
+            CanonicalIdentity.email.ilike(search_term),
+            CanonicalIdentity.full_name.ilike(search_term)
         ]
-        
-        # Handle IP address search (INET type) - convert to text for search
-        if search_query and any(c.isdigit() or c == '.' for c in search_query):
-            try:
-                from sqlalchemy import func
-                search_conditions.append(func.host(Device.ip_address).ilike(f"%{search_query}%"))
-            except:
-                # Fallback: just search as string representation
-                search_conditions.append(Device.ip_address.op('::text').ilike(f"%{search_query}%"))
-        
-        # Add user fields to search (we always have the join now)
-        search_conditions.extend([
-            CanonicalIdentity.full_name.ilike(f"%{search_query}%"),
-            CanonicalIdentity.email.ilike(f"%{search_query}%"),
-            CanonicalIdentity.department.ilike(f"%{search_query}%"),
-            CanonicalIdentity.role.ilike(f"%{search_query}%"),
-            CanonicalIdentity.location.ilike(f"%{search_query}%")
-        ])
-        
-        # Add tag search - find devices with tags that match the search query
-        tag_search_subquery = db.query(DeviceTag.device_id).filter(
-            DeviceTag.tag.op('::text').ilike(f"%{search_query}%")
-        )
-        search_conditions.append(Device.id.in_(tag_search_subquery))
-        
-        # Add group search
-        group_cids = db.query(GroupMembership.cid).filter(
-            GroupMembership.group_name.ilike(f"%{search_query}%")
-        )
-        search_conditions.append(Device.owner_cid.in_(group_cids))
-        
         base_query = base_query.filter(or_(*search_conditions))
     
     # Apply sorting
@@ -271,7 +238,8 @@ def get_device_detail(
         404: Device not found
     """
     
-    device = db.query(Device).filter(Device.id == device_id).first()
+    # Query device with owner information
+    device = db.query(Device).join(CanonicalIdentity, Device.owner_cid == CanonicalIdentity.cid).filter(Device.id == device_id).first()
     
     if not device:
         raise HTTPException(
@@ -279,7 +247,30 @@ def get_device_detail(
             detail=f"Device with ID {device_id} not found"
         )
     
-    return DeviceSchema.model_validate(device)
+    # Create device dict with owner information
+    device_dict = {
+        "id": device.id,
+        "name": device.name,
+        "last_seen": device.last_seen,
+        "compliant": device.compliant,
+        "owner_cid": device.owner_cid,
+        "ip_address": str(device.ip_address) if device.ip_address else None,
+        "mac_address": device.mac_address,
+        "vlan": device.vlan,
+        "os_version": device.os_version,
+        "last_check_in": device.last_check_in,
+        "status": device.status,
+        "tags": device.tags
+    }
+    
+    # Add owner information (we have the join now)
+    device_dict.update({
+        "owner_name": device.owner.full_name if hasattr(device, 'owner') and device.owner else None,
+        "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
+        "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
+    })
+    
+    return DeviceSchema.model_validate(device_dict)
 
 
 @router.put("/{device_id}", response_model=DeviceSchema)
