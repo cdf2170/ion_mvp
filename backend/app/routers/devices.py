@@ -65,7 +65,7 @@ def get_devices(
     - Use this to build device dashboards and compliance reports
     - Supports filtering by compliance status, connection status, owner, and multiple tags
     - Enhanced search works on device names, IP addresses, MAC addresses, owner info, tags, and groups
-    - Multiple tags filtering: use comma-separated values (e.g., "Remote,VIP" or "On-Site,Corporate") - shows devices that have ALL specified tags (can have additional tags too)
+    - Multiple tags filtering: use comma-separated values (e.g., "Remote,VIP" or "On-Site,Corporate") - shows devices that have ANY of the specified tags
     - Supports sorting by any column with direction control
     - Returns pagination info for infinite scroll or page navigation
     
@@ -116,13 +116,11 @@ def get_devices(
                     break
         
         if valid_tags:
-            # Filter devices that have ALL the specified tags (inclusive filtering)
-            # Devices can have additional tags beyond the ones specified
+            # Filter devices that have ANY of the specified tags (OR logic)
+            # Much simpler and more reliable than complex grouping/having queries
             tag_device_ids = db.query(DeviceTag.device_id).filter(
                 DeviceTag.tag.in_(valid_tags)
-            ).group_by(DeviceTag.device_id).having(
-                func.count(DeviceTag.tag.distinct()) == len(valid_tags)
-            )
+            ).distinct()
             
             base_query = base_query.filter(Device.id.in_(tag_device_ids))
     
