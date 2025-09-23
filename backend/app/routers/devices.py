@@ -16,6 +16,7 @@ from backend.app.schemas import (
     DeviceTagRequest
 )
 from backend.app.security.auth import verify_token
+from backend.app.cache import app_cache
 
 
 router = APIRouter(prefix="/devices", tags=["devices"])
@@ -136,44 +137,19 @@ def get_devices(
     # We always join with CanonicalIdentity for owner information
     # (This was already done at the beginning of the function)
     
-    # Enhanced search functionality - comprehensive search across multiple fields
+    # Enhanced search functionality - fixed and simplified
     if query and query.strip():
-        search_term = query.strip()
-        search_conditions = []
-        
-        # Core device fields
-        search_pattern = f"%{search_term}%"
-        search_conditions.extend([
-            Device.name.ilike(search_pattern),
-            Device.ip_address.ilike(search_pattern),
-            Device.mac_address.ilike(search_pattern),
-            Device.vlan.ilike(search_pattern),
-            Device.os_version.ilike(search_pattern)
-        ])
-        
-        # Owner information
-        search_conditions.extend([
-            CanonicalIdentity.email.ilike(search_pattern),
-            CanonicalIdentity.full_name.ilike(search_pattern),
-            CanonicalIdentity.department.ilike(search_pattern)
-        ])
-        
-        # Search in device tags
-        tag_devices = db.query(DeviceTag.device_id).filter(
-            DeviceTag.tag.ilike(search_pattern)
-        ).subquery()
-        search_conditions.append(Device.id.in_(db.query(tag_devices.c.device_id)))
-        
-        # Search in group memberships
-        group_devices = db.query(GroupMembership.cid).filter(
-            or_(
-                GroupMembership.group_name.ilike(search_pattern),
-                GroupMembership.group_type.ilike(search_pattern)
-            )
-        ).subquery()
-        search_conditions.append(Device.owner_cid.in_(db.query(group_devices.c.cid)))
-        
-        # Apply all search conditions with OR logic
+        search_term = f"%{query.strip()}%"
+        search_conditions = [
+            Device.name.ilike(search_term),
+            Device.ip_address.ilike(search_term),
+            Device.mac_address.ilike(search_term),
+            Device.vlan.ilike(search_term),
+            Device.os_version.ilike(search_term),
+            CanonicalIdentity.email.ilike(search_term),
+            CanonicalIdentity.full_name.ilike(search_term),
+            CanonicalIdentity.department.ilike(search_term)
+        ]
         base_query = base_query.filter(or_(*search_conditions))
     
     # Apply sorting
@@ -732,3 +708,101 @@ def get_device_risk_summary(
         "high_risk_devices": high_risk,
         "risk_score_percentage": round((high_risk / total_devices * 100), 2) if total_devices > 0 else 0
     }
+
+
+# Cached summary endpoints
+@router.get("/summary/counts")
+def get_device_counts_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get cached device counts summary for dashboard.
+    
+    Returns total devices, compliant/non-compliant counts, and status breakdown.
+    This endpoint is cached for 5 minutes to improve dashboard performance.
+    """
+    cache_key = "device_counts_summary"
+    
+    # Try to get from cache first
+    cached_result = app_cache.get(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
+    # Calculate fresh data
+    total_devices = db.query(Device).count()
+    compliant_devices = db.query(Device).filter(Device.compliant == True).count()
+    non_compliant_devices = total_devices - compliant_devices
+    
+    connected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.CONNECTED).count()
+    disconnected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.DISCONNECTED).count()
+    unknown_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.UNKNOWN).count()
+    
+    result = {
+        "total_devices": total_devices,
+        "compliant_devices": compliant_devices,
+        "non_compliant_devices": non_compliant_devices,
+        "connected_devices": connected_devices,
+        "disconnected_devices": disconnected_devices,
+        "unknown_devices": unknown_devices,
+        "cached": False  # Indicates this is fresh data
+    }
+    
+    # Cache for 5 minutes (300 seconds)
+    app_cache.set(cache_key, result, ttl_seconds=300)
+    
+    return result
+
+
+@router.get("/summary/by-status")  
+def get_devices_by_status_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get cached device status breakdown for charts.
+    
+    Returns device counts grouped by status with percentages.
+    This endpoint is cached for 5 minutes.
+    """
+    cache_key = "devices_by_status_summary"
+    
+    # Try to get from cache first
+    cached_result = app_cache.get(cache_key)
+    if cached_result is not None:
+        cached_result["cached"] = True
+        return cached_result
+    
+    # Calculate fresh data
+    total_devices = db.query(Device).count()
+    
+    if total_devices == 0:
+        result = {
+            "total": 0,
+            "breakdown": [],
+            "cached": False
+        }
+    else:
+        status_counts = db.query(
+            Device.status,
+            func.count(Device.id).label('count')
+        ).group_by(Device.status).all()
+        
+        breakdown = []
+        for status, count in status_counts:
+            breakdown.append({
+                "status": status.value,
+                "count": count,
+                "percentage": round((count / total_devices) * 100, 2)
+            })
+        
+        result = {
+            "total": total_devices,
+            "breakdown": breakdown,
+            "cached": False
+        }
+    
+    # Cache for 5 minutes
+    app_cache.set(cache_key, result, ttl_seconds=300)
+    
+    return result
