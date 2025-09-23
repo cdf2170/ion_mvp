@@ -176,49 +176,10 @@ class DeviceTag(Base):
     device = relationship("Device", back_populates="tags")
 
 
-# TEMP_COMMENTED: class AgentEventTypeEnum(enum.Enum):
-    LOGIN = "Login"
-    LOGOUT = "Logout"
-    PROCESS_START = "Process Start"
-    PROCESS_END = "Process End"
-    NETWORK_CONNECTION = "Network Connection"
-    FILE_ACCESS = "File Access"
-    USB_CONNECT = "USB Connect"
-    USB_DISCONNECT = "USB Disconnect"
-    SOFTWARE_INSTALL = "Software Install"
-    SOFTWARE_UNINSTALL = "Software Uninstall"
-    REGISTRY_CHANGE = "Registry Change"
-    SERVICE_START = "Service Start"
-    SERVICE_STOP = "Service Stop"
-    CERTIFICATE_USE = "Certificate Use"
-    POLICY_VIOLATION = "Policy Violation"
-    HEARTBEAT = "Heartbeat"
+# TEMP_COMMENTED: AgentEventTypeEnum class completely removed
 
 
-# TEMP_COMMENTED: class AgentEvent(Base):
-    __tablename__ = "agent_events"
-
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
-    event_type = Column(SQLEnum(AgentEventTypeEnum), nullable=False)
-    timestamp = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Event details (flexible JSON structure)
-    event_data = Column(JSON, nullable=False)
-
-    # User context (if available)
-    user_context = Column(String)  # Username, SID, etc.
-
-    # Risk scoring
-    risk_score = Column(Integer, default=0)  # 0-100
-
-    # Correlation fields
-    correlation_id = Column(String)  # For grouping related events
-    parent_event_id = Column(UUID(as_uuid=True), ForeignKey("agent_events.id"))
-
-    # Relationships
-    # TEMP_COMMENTED: device = relationship("Device", back_populates="agent_events")
-    # TEMP_COMMENTED: parent_event = relationship("AgentEvent", remote_side=[id])
+# TEMP_COMMENTED: AgentEvent class completely removed
 
 
 class GroupTypeEnum(enum.Enum):
