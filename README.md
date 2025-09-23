@@ -1,13 +1,3 @@
-# MVP 
-
-P-y API   PSQL     .
-
-  - .
-
-```
-
-# MVP Backend
-
 This repository contains a production oriented FastAPI backend for an identity and device management MVP. The backend exposes versioned REST endpoints under the `/v1` prefix and uses PostgreSQL for persistence. It includes utilities for seeding, migration, and a small administrative surface for maintenance tasks.
 
 ## Project overview
@@ -202,5 +192,3 @@ Notes:
 - Most business endpoints require a Bearer token via the `verify_token` dependency.
 - The OAuth router is mounted without the `/v1` prefix.
 - For a runtime-accurate dump of registered routes, call the running app's debug endpoint: `/v1/debug/routes`.
-
-If you want, I can generate an `API_REFERENCE.md` with this list formatted as a table and include parameters and response model references.
