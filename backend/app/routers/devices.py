@@ -16,7 +16,17 @@ from backend.app.schemas import (
     DeviceTagRequest
 )
 from backend.app.security.auth import verify_token
-from backend.app.cache import app_cache
+# Try to import cache, fallback if not available
+try:
+    from backend.app.cache import app_cache
+except ImportError:
+    # Fallback cache implementation
+    class SimpleCache:
+        def get(self, key): return None
+        def set(self, key, value, ttl_seconds=300): pass
+        def clear(self): pass
+        def size(self): return 0
+    app_cache = SimpleCache()
 
 
 router = APIRouter(prefix="/devices", tags=["devices"])
