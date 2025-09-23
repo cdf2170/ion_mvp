@@ -11,7 +11,7 @@ from backend.app.db.models import (
     Device, CanonicalIdentity, AgentEvent, AgentEventTypeEnum, 
     DeviceStatusEnum, AgentStatusEnum
 )
-from backend.app.auth import verify_token
+from backend.app.security.auth import verify_token
 from backend.app.services.identity_correlation import IdentityCorrelationEngine
 
 router = APIRouter(prefix="/agents", tags=["agents"])
