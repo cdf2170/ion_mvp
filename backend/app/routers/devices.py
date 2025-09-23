@@ -7,7 +7,7 @@ from uuid import UUID
 from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy
+from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy, ActivityHistory
 from backend.app.schemas import (
     DeviceSchema, 
     DeviceListResponse, 
@@ -594,6 +594,13 @@ def merge_devices(
                 tag=tag_enum
             )
             db.add(new_tag)
+        
+        # Transfer activity history from merged devices to primary device
+        for device in devices_to_merge:
+            # Update activity history to point to primary device
+            db.query(ActivityHistory).filter(
+                ActivityHistory.device_id == device.id
+            ).update({"device_id": primary_device.id})
         
         # Delete devices that were merged (and their tags)
         deleted_ids = []
