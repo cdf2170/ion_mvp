@@ -10,7 +10,35 @@ The agent runs as a Windows service and provides:
 - Network connection tracking
 - Hardware fingerprinting for device correlation
 - Secure communication with the backend API
-- Automatic correlation validation against API data
+- **Automatic correlation validation against API data**
+- **Discrepancy detection and reporting**
+
+## The Hybrid Correlation Strategy
+
+This agent implements a revolutionary approach to identity management:
+
+1. **API Data Collection**: Your backend pulls data from Okta, Azure AD, CrowdStrike, etc.
+2. **Agent Ground Truth**: The agent reports what's actually happening on the device
+3. **Correlation Validation**: The system compares API data vs. agent reality
+4. **Gap Detection**: Automatically identifies discrepancies and missing data
+5. **Error Correction**: Uses agent data as the source of truth when conflicts arise
+
+### Example Scenarios
+
+**Shadow IT Detection**:
+- API: User has 1 corporate laptop
+- Agent: Reports 2 devices (corporate + personal laptop accessing resources)
+- Result: Alert for unmanaged device
+
+**Stale Identity Data**:
+- API: User terminated 30 days ago
+- Agent: User actively logged in right now
+- Result: Critical alert for terminated user with active access
+
+**Device Ownership Confusion**:
+- API: Device belongs to John Smith
+- Agent: Sarah Jones is actually logged in
+- Result: Device ownership correction needed
 
 ## Architecture
 
@@ -25,8 +53,10 @@ Agent Service
 ├── Communication Layer
 │   ├── API Client
 │   ├── Authentication
-│   └── Retry Logic
-└── Configuration Manager
+│   ├── Retry Logic
+│   └── Discrepancy Reporting
+├── Configuration Manager
+└── Correlation Validator
 ```
 
 ## Features
