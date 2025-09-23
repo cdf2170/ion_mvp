@@ -176,7 +176,9 @@ class DeviceTag(Base):
     device = relationship("Device", back_populates="tags")
 
 
-# TEMP_COMMENTED: AgentEventTypeEnum class completely removed
+class AgentEventTypeEnum(enum.Enum):
+    """Temporary stub to prevent import errors"""
+    TEMP_STUB = "Temporary Stub"
 
 
 # TEMP_COMMENTED: AgentEvent class completely removed
