@@ -457,6 +457,29 @@ def create_app() -> FastAPI:
                 status_code=500, 
                 detail=f"Simple seeding error: {str(e)}"
             )
+
+    @app.get("/v1/admin/test-device-format")
+    def test_device_format(_: str = Depends(verify_token)):
+        """TEMPORARY: Test what device format would be generated"""
+        import random
+        
+        # Sample device types from seeding script
+        sample_types = ["MacBook Pro 16\"", "ThinkPad P1 Gen 6", "Dell XPS 15", "Surface Laptop 5"]
+        device_type = random.choice(sample_types)
+        
+        # Test the enhanced format logic
+        if "MacBook" in device_type or "Mac" in device_type:
+            os_base_options = ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]
+            os_options = [f"{device_type} - {os}" for os in os_base_options]
+        else:
+            os_base_options = ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]
+            os_options = [f"{device_type} - {os}" for os in os_base_options]
+        
+        return {
+            "device_type": device_type,
+            "enhanced_format": random.choice(os_options),
+            "message": "This shows what the enhanced device info format would look like"
+        }
     
     @app.post("/v1/admin/run-migration")
     def run_migration_admin(_: str = Depends(verify_token)):
