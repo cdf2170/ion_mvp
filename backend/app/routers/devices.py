@@ -330,15 +330,15 @@ def get_devices_comprehensive_summary(
         # Time window for trends
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
         
-        # Basic device counts
-        total_devices = db.query(Device).count()
-        connected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.CONNECTED).count()
-        disconnected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.DISCONNECTED).count()
-        unknown_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.UNKNOWN).count()
+        # Basic device counts - use explicit column selection to avoid schema issues
+        total_devices = db.query(func.count(Device.id)).scalar() or 0
+        connected_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.CONNECTED).scalar() or 0
+        disconnected_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.DISCONNECTED).scalar() or 0
+        unknown_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.UNKNOWN).scalar() or 0
         
         # Compliance statistics
-        compliant_devices = db.query(Device).filter(Device.compliant == True).count()
-        non_compliant_devices = db.query(Device).filter(Device.compliant == False).count()
+        compliant_devices = db.query(func.count(Device.id)).filter(Device.compliant == True).scalar() or 0
+        non_compliant_devices = db.query(func.count(Device.id)).filter(Device.compliant == False).scalar() or 0
         compliance_rate = (compliant_devices / total_devices * 100) if total_devices > 0 else 0
         
         # Device distribution by VLAN
@@ -357,26 +357,26 @@ def get_devices_comprehensive_summary(
         tag_stats = db.query(DeviceTag.tag, func.count(DeviceTag.device_id).label('count')).group_by(DeviceTag.tag).order_by(func.count(DeviceTag.device_id).desc()).all()
         
         # Recent activity (devices that checked in recently)
-        recent_activity = db.query(Device).filter(
+        recent_activity = db.query(func.count(Device.id)).filter(
             Device.last_check_in >= cutoff_date
-        ).count()
+        ).scalar() or 0
         
         # Devices needing attention (non-compliant or not seen recently)
-        devices_needing_attention = db.query(Device).filter(
+        devices_needing_attention = db.query(func.count(Device.id)).filter(
             or_(
                 Device.compliant == False,
                 Device.last_seen < cutoff_date,
                 Device.status == DeviceStatusEnum.UNKNOWN
             )
-        ).count()
+        ).scalar() or 0
         
         # Security alerts (simulated based on non-compliance and old devices)
-        security_alerts = db.query(Device).filter(
+        security_alerts = db.query(func.count(Device.id)).filter(
             and_(
                 Device.compliant == False,
                 Device.last_seen < datetime.utcnow() - timedelta(days=7)
             )
-        ).count()
+        ).scalar() or 0
         
         result = {
             "overview": {
