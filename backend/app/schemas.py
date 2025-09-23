@@ -283,6 +283,48 @@ class DeviceTagRequest(BaseModel):
     tags: List[DeviceTagEnum] = Field(..., description="List of tags to set for the device")
 
 
+class DeviceRenameRequest(BaseModel):
+    """
+    Request to rename a device.
+    
+    Attributes:
+        name: New device name
+    """
+    name: str = Field(..., min_length=1, max_length=255, description="New device name")
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate device name format."""
+        if not v or not v.strip():
+            raise ValueError('Device name cannot be empty')
+        
+        # Basic validation for device names
+        if len(v.strip()) < 1:
+            raise ValueError('Device name must be at least 1 character')
+        
+        # Remove excessive whitespace
+        return v.strip()
+
+
+class DeviceVLANRequest(BaseModel):
+    """
+    Request to move device to a different VLAN.
+    
+    Attributes:
+        vlan: New VLAN identifier
+    """
+    vlan: str = Field(..., min_length=1, max_length=100, description="New VLAN identifier")
+    
+    @field_validator('vlan')
+    @classmethod 
+    def validate_vlan(cls, v: str) -> str:
+        """Validate VLAN format."""
+        if not v or not v.strip():
+            raise ValueError('VLAN cannot be empty')
+        return v.strip()
+
+
 class DeviceCreateRequest(BaseModel):
     """
     Request to create a new device.

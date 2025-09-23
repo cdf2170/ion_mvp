@@ -9,11 +9,13 @@ from enum import Enum
 from backend.app.db.session import get_db
 from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy
 from backend.app.schemas import (
-    DeviceSchema,
-    DeviceListResponse,
+    DeviceSchema, 
+    DeviceListResponse, 
     DeviceUpdateRequest,
     DeviceCreateRequest,
-    DeviceTagRequest
+    DeviceTagRequest,
+    DeviceRenameRequest,
+    DeviceVLANRequest
 )
 from backend.app.security.auth import verify_token
 # Try to import cache, fallback if not available
@@ -383,6 +385,56 @@ def update_device(
     db.refresh(device)
     
     return DeviceSchema.model_validate(device)
+
+
+@router.put("/{device_id}/rename", response_model=DeviceSchema)
+def rename_device(
+    device_id: UUID,
+    rename_data: DeviceRenameRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Rename a device.
+    
+    **Frontend Integration Notes:**
+    - Simple device renaming operation
+    - Validates name format and length
+    - Returns updated device information
+    
+    Args:
+        device_id: Device's unique identifier
+        rename_data: New device name
+    
+    Returns:
+        Updated device information with new name
+        
+    Raises:
+        404: Device not found
+        400: Invalid name format
+    """
+    
+    device = db.query(Device).filter(Device.id == device_id).first()
+    
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device with ID {device_id} not found"
+        )
+    
+    # Update the device name
+    device.name = rename_data.name
+    
+    try:
+        db.commit()
+        db.refresh(device)
+        return DeviceSchema.model_validate(device)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to rename device: {str(e)}"
+        )
 
 
 @router.delete("/{device_id}")
