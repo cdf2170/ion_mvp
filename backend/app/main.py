@@ -492,21 +492,101 @@ def create_app() -> FastAPI:
     
     @app.post("/v1/admin/fix-database")
     def fix_database(_: str = Depends(verify_token)):
-        """TEMPORARY: Add missing group columns to Railway database"""
+        """Add missing agent columns to Railway database"""
         try:
             from backend.app.db.session import engine
             from sqlalchemy import text
             
+            results = []
+            
             with engine.connect() as conn:
-                # Add the missing columns
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS group_type VARCHAR"))
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS description VARCHAR"))
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS source_system VARCHAR"))
+                # Create AgentStatusEnum if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        DO $$ BEGIN
+                            CREATE TYPE agentstatusenum AS ENUM ('INSTALLED', 'RUNNING', 'STOPPED', 'ERROR', 'UPDATING', 'UNINSTALLED');
+                        EXCEPTION
+                            WHEN duplicate_object THEN null;
+                        END $$;
+                    """))
+                    results.append("AgentStatusEnum created/verified")
+                except Exception as e:
+                    results.append(f"AgentStatusEnum error: {str(e)}")
+                
+                # Create AgentEventTypeEnum if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        DO $$ BEGIN
+                            CREATE TYPE agenteventtypeenum AS ENUM (
+                                'USER_LOGIN', 'USER_LOGOUT', 'PROCESS_START', 'PROCESS_STOP', 
+                                'NETWORK_CONNECTION', 'USB_DEVICE_CONNECTED', 'USB_DEVICE_DISCONNECTED',
+                                'SERVICE_START', 'SERVICE_STOP', 'REGISTRY_CHANGE', 'FILE_ACCESS',
+                                'SECURITY_EVENT', 'SYSTEM_BOOT', 'SYSTEM_SHUTDOWN', 'ERROR'
+                            );
+                        EXCEPTION
+                            WHEN duplicate_object THEN null;
+                        END $$;
+                    """))
+                    results.append("AgentEventTypeEnum created/verified")
+                except Exception as e:
+                    results.append(f"AgentEventTypeEnum error: {str(e)}")
+                
+                # Add agent columns to devices table
+                agent_columns = [
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_installed BOOLEAN NOT NULL DEFAULT false",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_version VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_status agentstatusenum",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_last_checkin TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_config_hash VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_data JSON",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS hardware_uuid VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS motherboard_serial VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS cpu_id VARCHAR"
+                ]
+                
+                for column_sql in agent_columns:
+                    try:
+                        conn.execute(text(column_sql))
+                        results.append(f"✓ {column_sql}")
+                    except Exception as e:
+                        results.append(f"✗ {column_sql} - {str(e)}")
+                
+                # Create agent_events table if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS agent_events (
+                            id UUID PRIMARY KEY,
+                            device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+                            event_type agenteventtypeenum NOT NULL,
+                            timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+                            event_data JSON NOT NULL,
+                            user_context VARCHAR,
+                            risk_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+                            correlation_id VARCHAR,
+                            parent_event_id UUID REFERENCES agent_events(id)
+                        )
+                    """))
+                    results.append("agent_events table created/verified")
+                except Exception as e:
+                    results.append(f"agent_events table error: {str(e)}")
+                
+                # Add the missing group columns too
+                try:
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS group_type VARCHAR"))
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS description VARCHAR"))
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS source_system VARCHAR"))
+                    results.append("Group membership columns added")
+                except Exception as e:
+                    results.append(f"Group columns error: {str(e)}")
+                
                 conn.commit()
             
-            return {"message": "Database fixed - missing columns added"}
+            return {
+                "message": "Database migration completed", 
+                "results": results
+            }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Fix error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Migration error: {str(e)}")
     
     # Cache management endpoints
     @app.post("/v1/cache/clear")
