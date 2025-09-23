@@ -355,17 +355,23 @@ def seed_database():
                 # Choose device type based on naming pattern
                 device_type = random.choice(naming_pattern["types"])
                 
-                # More realistic OS versions based on device type
+                # Combine device type with OS version for frontend "Device Info"
                 if "MacBook" in device_type or "Mac" in device_type or "iMac" in device_type:
-                    os_options = ["macOS 14.2 Sonoma", "macOS 13.6 Ventura", "macOS 14.1 Sonoma"]
+                    os_base_options = ["macOS 14.2 Sonoma", "macOS 13.6 Ventura", "macOS 14.1 Sonoma"]
+                    os_options = [f"{device_type} - {os}" for os in os_base_options]
                 elif "iPhone" in device_type:
-                    os_options = ["iOS 17.2", "iOS 17.1", "iOS 16.7"]
+                    os_base_options = ["iOS 17.2", "iOS 17.1", "iOS 16.7"]
+                    os_options = [f"{device_type} - {os}" for os in os_base_options]
                 elif "iPad" in device_type:
-                    os_options = ["iPadOS 17.2", "iPadOS 17.1", "iPadOS 16.7"]
+                    os_base_options = ["iPadOS 17.2", "iPadOS 17.1", "iPadOS 16.7"]
+                    os_options = [f"{device_type} - {os}" for os in os_base_options]
                 elif "Samsung" in device_type:
-                    os_options = ["Android 14", "Android 13", "Android 12"]
+                    os_base_options = ["Android 14", "Android 13", "Android 12"]
+                    os_options = [f"{device_type} - {os}" for os in os_base_options]
                 else:
-                    os_options = ["Windows 11 Pro 23H2", "Windows 11 Enterprise", "Windows 10 Enterprise LTSC", "Ubuntu 22.04 LTS"]
+                    # For ThinkPad, Dell, Surface, HP devices
+                    os_base_options = ["Windows 11 Pro 23H2", "Windows 11 Enterprise", "Windows 10 Enterprise LTSC", "Ubuntu 22.04 LTS"]
+                    os_options = [f"{device_type} - {os}" for os in os_base_options]
                 
                 device = Device(
                     name=device_name,
