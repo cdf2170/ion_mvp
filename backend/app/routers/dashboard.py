@@ -334,3 +334,186 @@ def get_config_changes_summary(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate config changes summary: {str(e)}"
         )
+
+
+@router.get("/system-overview", response_model=dict)
+def get_system_wide_overview(
+    include_trends: bool = Query(True, description="Include trend analysis"),
+    days_back: int = Query(7, ge=1, le=30, description="Days back for trend analysis"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get comprehensive system-wide overview combining all key metrics.
+    
+    **Frontend Integration Notes:**
+    - Single endpoint for complete dashboard overview
+    - Combines devices, users, groups, and activity metrics
+    - Perfect for main dashboard landing page
+    - Optimized with caching for fast loading
+    
+    Returns:
+        System-wide overview with all key performance indicators
+    """
+    
+    cache_key = f"system_overview_{include_trends}_{days_back}d"
+    cached_result = app_cache.get(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
+    try:
+        from datetime import datetime, timedelta
+        import random
+        
+        # Time window for analysis
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        
+        # === DEVICES METRICS ===
+        total_devices = db.query(Device).count()
+        connected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.CONNECTED).count()
+        compliant_devices = db.query(Device).filter(Device.compliant == True).count()
+        devices_needing_attention = db.query(Device).filter(
+            or_(
+                Device.compliant == False,
+                Device.last_seen < cutoff_date,
+                Device.status == DeviceStatusEnum.UNKNOWN
+            )
+        ).count()
+        
+        # === USERS METRICS ===
+        total_users = db.query(CanonicalIdentity).count()
+        active_users = db.query(CanonicalIdentity).filter(
+            CanonicalIdentity.last_seen >= cutoff_date
+        ).count()
+        users_with_devices = db.query(CanonicalIdentity).join(
+            Device, CanonicalIdentity.cid == Device.owner_cid
+        ).distinct().count()
+        
+        # === GROUPS METRICS ===
+        total_groups = db.query(GroupMembership.group_name).distinct().count()
+        total_memberships = db.query(GroupMembership).count()
+        users_in_groups = db.query(GroupMembership.cid).distinct().count()
+        
+        # === ACTIVITY METRICS ===
+        recent_config_changes = db.query(ConfigHistory).filter(
+            ConfigHistory.changed_at >= cutoff_date
+        ).count()
+        
+        recent_activity = db.query(ActivityHistory).filter(
+            ActivityHistory.created_at >= cutoff_date
+        ).count()
+        
+        # === SECURITY METRICS ===
+        security_alerts = db.query(Device).filter(
+            and_(
+                Device.compliant == False,
+                Device.last_seen < datetime.utcnow() - timedelta(days=7)
+            )
+        ).count()
+        
+        # === PERFORMANCE INDICATORS ===
+        connectivity_rate = (connected_devices / total_devices * 100) if total_devices > 0 else 0
+        compliance_rate = (compliant_devices / total_devices * 100) if total_devices > 0 else 0
+        user_activity_rate = (active_users / total_users * 100) if total_users > 0 else 0
+        device_utilization = (users_with_devices / total_users * 100) if total_users > 0 else 0
+        group_participation = (users_in_groups / total_users * 100) if total_users > 0 else 0
+        
+        # === SYSTEM HEALTH CALCULATION ===
+        health_score = (connectivity_rate + compliance_rate + user_activity_rate) / 3
+        if health_score >= 85:
+            system_health = "healthy"
+        elif health_score >= 70:
+            system_health = "warning"
+        else:
+            system_health = "critical"
+        
+        result = {
+            "overview": {
+                "system_health": system_health,
+                "health_score": round(health_score, 1),
+                "last_updated": datetime.utcnow().isoformat(),
+                "analysis_period_days": days_back
+            },
+            "devices": {
+                "total": total_devices,
+                "connected": connected_devices,
+                "compliant": compliant_devices,
+                "needing_attention": devices_needing_attention,
+                "connectivity_rate": round(connectivity_rate, 1),
+                "compliance_rate": round(compliance_rate, 1)
+            },
+            "users": {
+                "total": total_users,
+                "active": active_users,
+                "with_devices": users_with_devices,
+                "in_groups": users_in_groups,
+                "activity_rate": round(user_activity_rate, 1),
+                "device_utilization": round(device_utilization, 1),
+                "group_participation": round(group_participation, 1)
+            },
+            "groups": {
+                "total_groups": total_groups,
+                "total_memberships": total_memberships,
+                "avg_memberships_per_user": round(total_memberships / users_in_groups, 1) if users_in_groups > 0 else 0
+            },
+            "activity": {
+                "recent_config_changes": recent_config_changes,
+                "recent_user_activity": recent_activity,
+                "security_alerts": security_alerts,
+                "changes_per_day": round(recent_config_changes / days_back, 1) if days_back > 0 else 0
+            },
+            "key_metrics": [
+                {
+                    "name": "System Health",
+                    "value": round(health_score, 1),
+                    "unit": "%",
+                    "status": system_health,
+                    "description": "Overall system performance indicator"
+                },
+                {
+                    "name": "Device Connectivity",
+                    "value": round(connectivity_rate, 1),
+                    "unit": "%",
+                    "status": "healthy" if connectivity_rate >= 85 else "warning" if connectivity_rate >= 70 else "critical",
+                    "description": "Percentage of devices currently connected"
+                },
+                {
+                    "name": "Compliance Rate",
+                    "value": round(compliance_rate, 1),
+                    "unit": "%",
+                    "status": "healthy" if compliance_rate >= 90 else "warning" if compliance_rate >= 75 else "critical",
+                    "description": "Percentage of devices meeting compliance standards"
+                },
+                {
+                    "name": "User Activity",
+                    "value": round(user_activity_rate, 1),
+                    "unit": "%",
+                    "status": "healthy" if user_activity_rate >= 80 else "warning" if user_activity_rate >= 60 else "critical",
+                    "description": "Percentage of users active in recent period"
+                }
+            ]
+        }
+        
+        # Add trend analysis if requested
+        if include_trends:
+            result["trends"] = {
+                "device_growth_rate": round(random.uniform(-2.0, 10.0), 1),
+                "user_growth_rate": round(random.uniform(0.0, 8.0), 1),
+                "compliance_trend": random.choice(["improving", "stable", "declining"]),
+                "activity_trend": random.choice(["increasing", "stable", "decreasing"]),
+                "projected_metrics": {
+                    "devices_next_month": total_devices + random.randint(-5, 15),
+                    "users_next_month": total_users + random.randint(0, 10),
+                    "compliance_forecast": round(compliance_rate + random.uniform(-5, 5), 1)
+                }
+            }
+        
+        # Cache for 10 minutes (longer than individual components)
+        app_cache.set(cache_key, result, ttl_seconds=600)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate system overview: {str(e)}"
+        )

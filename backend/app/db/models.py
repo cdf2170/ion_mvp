@@ -24,6 +24,15 @@ class DeviceStatusEnum(enum.Enum):
     UNKNOWN = "Unknown"
 
 
+class AgentStatusEnum(enum.Enum):
+    INSTALLED = "Installed"
+    RUNNING = "Running"
+    STOPPED = "Stopped"
+    ERROR = "Error"
+    UPDATING = "Updating"
+    UNINSTALLED = "Uninstalled"
+
+
 class DeviceTagEnum(enum.Enum):
     REMOTE = "Remote"
     ON_SITE = "On-Site"
@@ -118,37 +127,98 @@ class CanonicalIdentity(Base):
 
 class Device(Base):
     __tablename__ = "devices"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)
     last_seen = Column(DateTime(timezone=True), server_default=func.now())
     compliant = Column(Boolean, nullable=False, default=True)
     owner_cid = Column(UUID(as_uuid=True), ForeignKey("canonical_identities.cid"), nullable=False)
-    
+
     # Network information
     ip_address = Column(INET)
     mac_address = Column(String(17))  # MAC format: XX:XX:XX:XX:XX:XX
     vlan = Column(String)
-    
+
     # System information
     os_version = Column(String)
     last_check_in = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(SQLEnum(DeviceStatusEnum), nullable=False, default=DeviceStatusEnum.UNKNOWN)
-    
+
+    # Agent-specific fields
+    agent_installed = Column(Boolean, nullable=False, default=False)
+    agent_version = Column(String)
+    agent_status = Column(SQLEnum(AgentStatusEnum))
+    agent_last_checkin = Column(DateTime(timezone=True))
+    agent_config_hash = Column(String)  # Hash of agent configuration
+
+    # Hardware fingerprinting for correlation
+    hardware_uuid = Column(String)  # Windows: Get-WmiObject Win32_ComputerSystemProduct | Select-Object UUID
+    motherboard_serial = Column(String)  # Additional hardware identifier
+    cpu_id = Column(String)  # CPU identifier
+
+    # Real-time agent data (JSONB for flexibility)
+    agent_data = Column(JSON)  # Real-time system state, processes, etc.
+
     # Relationships
     owner = relationship("CanonicalIdentity", back_populates="devices")
     tags = relationship("DeviceTag", back_populates="device", cascade="all, delete-orphan")
+    agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")
 
 
 class DeviceTag(Base):
     __tablename__ = "device_tags"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
     tag = Column(SQLEnum(DeviceTagEnum), nullable=False)
-    
+
     # Relationships
     device = relationship("Device", back_populates="tags")
+
+
+class AgentEventTypeEnum(enum.Enum):
+    LOGIN = "Login"
+    LOGOUT = "Logout"
+    PROCESS_START = "Process Start"
+    PROCESS_END = "Process End"
+    NETWORK_CONNECTION = "Network Connection"
+    FILE_ACCESS = "File Access"
+    USB_CONNECT = "USB Connect"
+    USB_DISCONNECT = "USB Disconnect"
+    SOFTWARE_INSTALL = "Software Install"
+    SOFTWARE_UNINSTALL = "Software Uninstall"
+    REGISTRY_CHANGE = "Registry Change"
+    SERVICE_START = "Service Start"
+    SERVICE_STOP = "Service Stop"
+    CERTIFICATE_USE = "Certificate Use"
+    POLICY_VIOLATION = "Policy Violation"
+    HEARTBEAT = "Heartbeat"
+
+
+class AgentEvent(Base):
+    __tablename__ = "agent_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    device_id = Column(UUID(as_uuid=True), ForeignKey("devices.id"), nullable=False)
+    event_type = Column(SQLEnum(AgentEventTypeEnum), nullable=False)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Event details (flexible JSON structure)
+    event_data = Column(JSON, nullable=False)
+
+    # User context (if available)
+    user_context = Column(String)  # Username, SID, etc.
+
+    # Risk scoring
+    risk_score = Column(Integer, default=0)  # 0-100
+
+    # Correlation fields
+    correlation_id = Column(String)  # For grouping related events
+    parent_event_id = Column(UUID(as_uuid=True), ForeignKey("agent_events.id"))
+
+    # Relationships
+    device = relationship("Device", back_populates="agent_events")
+    parent_event = relationship("AgentEvent", remote_side=[id])
 
 
 class GroupTypeEnum(enum.Enum):
