@@ -15,7 +15,9 @@ from backend.app.schemas import (
     DeviceCreateRequest,
     DeviceTagRequest,
     DeviceRenameRequest,
-    DeviceVLANRequest
+    DeviceVLANRequest,
+    DeviceMergeRequest,
+    DeviceMergeResponse
 )
 from backend.app.security.auth import verify_token
 # Try to import cache, fallback if not available
@@ -495,6 +497,127 @@ def retag_device(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update device tags: {str(e)}"
+        )
+
+
+@router.post("/merge", response_model=DeviceMergeResponse)
+def merge_devices(
+    merge_data: DeviceMergeRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Merge multiple devices into one primary device.
+    
+    **Frontend Integration Notes:**
+    - Combines data from multiple devices into a single device
+    - Primary device keeps its core identity (ID, name, owner)
+    - Tags from all devices are combined (duplicates removed)
+    - Most recent data is preserved for timestamps
+    - Devices being merged are deleted after successful merge
+    - This operation cannot be undone
+    
+    **Merge Strategy:**
+    - Primary device: Keeps name, owner, and core identity
+    - IP/MAC/VLAN: Uses primary device values
+    - Tags: Combines all unique tags from all devices
+    - Timestamps: Uses most recent values across all devices
+    - Compliance: Uses primary device compliance status
+    
+    Args:
+        merge_data: Merge request with primary device and devices to merge
+    
+    Returns:
+        Merged device information and operation summary
+        
+    Raises:
+        404: One or more devices not found
+        400: Invalid merge request (e.g., trying to merge device with itself)
+    """
+    
+    # Validate that primary device exists
+    primary_device = db.query(Device).filter(
+        Device.id == merge_data.primary_device_id
+    ).first()
+    
+    if not primary_device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Primary device with ID {merge_data.primary_device_id} not found"
+        )
+    
+    # Validate that all devices to merge exist
+    devices_to_merge = db.query(Device).filter(
+        Device.id.in_(merge_data.device_ids_to_merge)
+    ).all()
+    
+    if len(devices_to_merge) != len(merge_data.device_ids_to_merge):
+        found_ids = {d.id for d in devices_to_merge}
+        missing_ids = set(merge_data.device_ids_to_merge) - found_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Devices not found: {list(missing_ids)}"
+        )
+    
+    try:
+        # Collect all tags from all devices (including primary)
+        all_device_ids = [merge_data.primary_device_id] + merge_data.device_ids_to_merge
+        all_tags = db.query(DeviceTag).filter(
+            DeviceTag.device_id.in_(all_device_ids)
+        ).all()
+        
+        # Get unique tags
+        unique_tags = {}
+        for tag in all_tags:
+            unique_tags[tag.tag] = tag.tag
+        
+        # Update primary device with merged data
+        all_devices = [primary_device] + devices_to_merge
+        
+        # Find most recent timestamps
+        most_recent_last_seen = max((d.last_seen for d in all_devices if d.last_seen), default=primary_device.last_seen)
+        most_recent_check_in = max((d.last_check_in for d in all_devices if d.last_check_in), default=primary_device.last_check_in)
+        
+        # Update primary device timestamps if newer ones found
+        if most_recent_last_seen and most_recent_last_seen > primary_device.last_seen:
+            primary_device.last_seen = most_recent_last_seen
+        if most_recent_check_in and most_recent_check_in > primary_device.last_check_in:
+            primary_device.last_check_in = most_recent_check_in
+        
+        # Remove all existing tags from primary device
+        db.query(DeviceTag).filter(DeviceTag.device_id == primary_device.id).delete()
+        
+        # Add all unique tags to primary device
+        for tag_enum in unique_tags.values():
+            new_tag = DeviceTag(
+                device_id=primary_device.id,
+                tag=tag_enum
+            )
+            db.add(new_tag)
+        
+        # Delete devices that were merged (and their tags)
+        deleted_ids = []
+        for device in devices_to_merge:
+            # Delete device tags first (due to foreign key constraint)
+            db.query(DeviceTag).filter(DeviceTag.device_id == device.id).delete()
+            # Delete the device
+            db.delete(device)
+            deleted_ids.append(device.id)
+        
+        db.commit()
+        db.refresh(primary_device)
+        
+        return DeviceMergeResponse(
+            merged_device=DeviceSchema.model_validate(primary_device),
+            merged_count=len(devices_to_merge),
+            deleted_device_ids=deleted_ids
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to merge devices: {str(e)}"
         )
 
 

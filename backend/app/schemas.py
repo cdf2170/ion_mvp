@@ -325,6 +325,51 @@ class DeviceVLANRequest(BaseModel):
         return v.strip()
 
 
+class DeviceMergeRequest(BaseModel):
+    """
+    Request to merge multiple devices into one.
+    
+    Attributes:
+        primary_device_id: The device to keep (target of merge)
+        device_ids_to_merge: List of device IDs to merge into the primary device
+        merge_strategy: How to handle conflicts (use the strategy from primary device)
+    """
+    primary_device_id: UUID = Field(..., description="Device ID to keep as the primary device")
+    device_ids_to_merge: List[UUID] = Field(..., min_items=1, description="List of device IDs to merge into primary")
+    
+    @field_validator('device_ids_to_merge')
+    @classmethod
+    def validate_merge_devices(cls, v: List[UUID], info) -> List[UUID]:
+        """Validate merge device list."""
+        if not v:
+            raise ValueError('Must specify at least one device to merge')
+        
+        # Check if primary device is in the merge list (not allowed)
+        primary_id = info.data.get('primary_device_id')
+        if primary_id and primary_id in v:
+            raise ValueError('Primary device cannot be in the merge list')
+        
+        # Check for duplicates
+        if len(v) != len(set(v)):
+            raise ValueError('Duplicate device IDs in merge list')
+            
+        return v
+
+
+class DeviceMergeResponse(BaseModel):
+    """
+    Response from device merge operation.
+    
+    Attributes:
+        merged_device: The resulting merged device
+        merged_count: Number of devices that were merged
+        deleted_device_ids: List of device IDs that were deleted during merge
+    """
+    merged_device: DeviceSchema
+    merged_count: int = Field(..., description="Number of devices merged into primary")
+    deleted_device_ids: List[UUID] = Field(..., description="Device IDs that were deleted")
+
+
 class DeviceCreateRequest(BaseModel):
     """
     Request to create a new device.
