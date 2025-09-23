@@ -439,6 +439,24 @@ def create_app() -> FastAPI:
                 status_code=500, 
                 detail=f"Seeding error: {str(e)}"
             )
+
+    @app.post("/v1/admin/simple-seed")  
+    def simple_seed_admin(_: str = Depends(verify_token)):
+        """TEMPORARY: Seed Railway database with simple user data only"""
+        try:
+            # Import simple seeding function
+            from simple_seed import simple_seed
+            
+            # Run simple seeding
+            simple_seed()
+            
+            return {"message": "Simple database seeded successfully"}
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Simple seeding error: {str(e)}"
+            )
     
     @app.post("/v1/admin/run-migration")
     def run_migration_admin(_: str = Depends(verify_token)):
