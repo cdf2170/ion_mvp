@@ -7,7 +7,7 @@ from uuid import UUID
 from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy, ActivityHistory
+from backend.app.db.models import Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, DeviceTagEnum, GroupMembership, Policy, ActivityHistory, ConfigHistory, ConfigChangeTypeEnum
 from backend.app.schemas import (
     DeviceSchema, 
     DeviceListResponse, 
@@ -34,6 +34,46 @@ except ImportError:
 
 
 router = APIRouter(prefix="/devices", tags=["devices"])
+
+
+def log_config_change(
+    db: Session,
+    entity_type: str,
+    entity_id: UUID,
+    change_type: ConfigChangeTypeEnum,
+    field_name: str,
+    old_value: str,
+    new_value: str,
+    changed_by: str = "API User"
+):
+    """
+    Log a configuration change to the audit trail.
+    
+    Args:
+        db: Database session
+        entity_type: Type of entity (device, policy, user)
+        entity_id: ID of the entity being changed
+        change_type: Type of change (CREATED, UPDATED, DELETED)
+        field_name: Name of the field being changed
+        old_value: Previous value
+        new_value: New value
+        changed_by: Who made the change
+    """
+    try:
+        config_entry = ConfigHistory(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            change_type=change_type,
+            field_name=field_name,
+            old_value=str(old_value) if old_value is not None else None,
+            new_value=str(new_value) if new_value is not None else None,
+            changed_by=changed_by
+        )
+        db.add(config_entry)
+        # Note: Don't commit here - let the calling function handle the transaction
+    except Exception as e:
+        # Log the error but don't fail the main operation
+        print(f"Warning: Failed to log config change: {str(e)}")
 
 
 class DeviceSortBy(str, Enum):
@@ -424,10 +464,25 @@ def rename_device(
             detail=f"Device with ID {device_id} not found"
         )
     
+    # Store old value for audit trail
+    old_name = device.name
+    
     # Update the device name
     device.name = rename_data.name
     
     try:
+        # Log the configuration change
+        log_config_change(
+            db=db,
+            entity_type="device",
+            entity_id=device.id,
+            change_type=ConfigChangeTypeEnum.UPDATED,
+            field_name="name",
+            old_value=old_name,
+            new_value=rename_data.name,
+            changed_by="API User"
+        )
+        
         db.commit()
         db.refresh(device)
         return DeviceSchema.model_validate(device)
@@ -477,6 +532,11 @@ def retag_device(
         )
     
     try:
+        # Get current tags for audit trail
+        current_tags = db.query(DeviceTag).filter(DeviceTag.device_id == device_id).all()
+        old_tags = [tag.tag.value for tag in current_tags]
+        new_tags = [tag.value for tag in tag_data.tags]
+        
         # Remove all existing tags for this device
         db.query(DeviceTag).filter(DeviceTag.device_id == device_id).delete()
         
@@ -487,6 +547,18 @@ def retag_device(
                 tag=tag_enum
             )
             db.add(new_tag)
+        
+        # Log the configuration change
+        log_config_change(
+            db=db,
+            entity_type="device",
+            entity_id=device.id,
+            change_type=ConfigChangeTypeEnum.UPDATED,
+            field_name="tags",
+            old_value=", ".join(sorted(old_tags)),
+            new_value=", ".join(sorted(new_tags)),
+            changed_by="API User"
+        )
         
         db.commit()
         db.refresh(device)
@@ -610,6 +682,32 @@ def merge_devices(
             # Delete the device
             db.delete(device)
             deleted_ids.append(device.id)
+        
+        # Log the merge operation
+        merged_device_names = [d.name for d in devices_to_merge]
+        log_config_change(
+            db=db,
+            entity_type="device",
+            entity_id=primary_device.id,
+            change_type=ConfigChangeTypeEnum.UPDATED,
+            field_name="merge_operation",
+            old_value=f"Standalone device",
+            new_value=f"Merged with devices: {', '.join(merged_device_names)}",
+            changed_by="API User"
+        )
+        
+        # Log deletion of merged devices
+        for device in devices_to_merge:
+            log_config_change(
+                db=db,
+                entity_type="device",
+                entity_id=device.id,
+                change_type=ConfigChangeTypeEnum.DELETED,
+                field_name="device_record",
+                old_value=f"Device: {device.name}",
+                new_value=f"Merged into device: {primary_device.name} ({primary_device.id})",
+                changed_by="API User"
+            )
         
         db.commit()
         db.refresh(primary_device)

@@ -7,7 +7,8 @@ from typing import List
 from backend.app.db.session import get_db
 from backend.app.db.models import (
     Device, CanonicalIdentity, DeviceTag, DeviceStatusEnum, 
-    GroupMembership, Policy, ActivityHistory, APIConnection
+    GroupMembership, Policy, ActivityHistory, APIConnection,
+    ConfigHistory, ConfigChangeTypeEnum
 )
 from backend.app.schemas import DashboardSummaryResponse, DashboardSummaryCard
 from backend.app.security.auth import verify_token
@@ -218,4 +219,118 @@ def get_quick_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate quick stats: {str(e)}"
+        )
+
+
+@router.get("/config-changes")
+def get_config_changes_summary(
+    hours_back: int = Query(24, ge=1, le=168, description="Hours back to analyze"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get recent configuration changes summary for dashboard.
+    
+    **Frontend Integration Notes:**
+    - Shows recent configuration activity for dashboard widgets
+    - Includes change counts by type and entity
+    - Perfect for audit overview components
+    
+    Returns:
+        Configuration changes summary with recent activity breakdown
+    """
+    
+    cache_key = f"config_changes_summary_{hours_back}h"
+    cached_result = app_cache.get(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
+    try:
+        # Time window
+        cutoff_time = datetime.utcnow() - timedelta(hours=hours_back)
+        
+        # Total changes in time window
+        total_changes = db.query(ConfigHistory).filter(
+            ConfigHistory.changed_at >= cutoff_time
+        ).count()
+        
+        # Changes by type
+        changes_by_type = db.query(
+            ConfigHistory.change_type,
+            func.count(ConfigHistory.id).label('count')
+        ).filter(
+            ConfigHistory.changed_at >= cutoff_time
+        ).group_by(ConfigHistory.change_type).all()
+        
+        # Changes by entity type
+        changes_by_entity = db.query(
+            ConfigHistory.entity_type,
+            func.count(ConfigHistory.id).label('count')
+        ).filter(
+            ConfigHistory.changed_at >= cutoff_time
+        ).group_by(ConfigHistory.entity_type).order_by(
+            func.count(ConfigHistory.id).desc()
+        ).all()
+        
+        # Recent changes (last 10)
+        recent_changes = db.query(ConfigHistory).filter(
+            ConfigHistory.changed_at >= cutoff_time
+        ).order_by(ConfigHistory.changed_at.desc()).limit(10).all()
+        
+        # Most active entities
+        active_entities = db.query(
+            ConfigHistory.entity_type,
+            ConfigHistory.entity_id,
+            func.count(ConfigHistory.id).label('change_count')
+        ).filter(
+            ConfigHistory.changed_at >= cutoff_time
+        ).group_by(
+            ConfigHistory.entity_type,
+            ConfigHistory.entity_id
+        ).order_by(func.count(ConfigHistory.id).desc()).limit(5).all()
+        
+        result = {
+            "overview": {
+                "total_changes": total_changes,
+                "time_window_hours": hours_back,
+                "changes_per_hour": round(total_changes / hours_back, 1) if hours_back > 0 else 0
+            },
+            "changes_by_type": [
+                {"type": change_type.value, "count": count}
+                for change_type, count in changes_by_type
+            ],
+            "changes_by_entity": [
+                {"entity_type": entity_type, "count": count}
+                for entity_type, count in changes_by_entity
+            ],
+            "recent_changes": [
+                {
+                    "id": str(change.id),
+                    "entity_type": change.entity_type,
+                    "entity_id": str(change.entity_id),
+                    "change_type": change.change_type.value,
+                    "field_name": change.field_name,
+                    "changed_by": change.changed_by,
+                    "changed_at": change.changed_at.isoformat()
+                }
+                for change in recent_changes
+            ],
+            "most_active_entities": [
+                {
+                    "entity_type": entity_type,
+                    "entity_id": str(entity_id),
+                    "change_count": change_count
+                }
+                for entity_type, entity_id, change_count in active_entities
+            ]
+        }
+        
+        # Cache for 10 minutes
+        app_cache.set(cache_key, result, ttl_seconds=600)
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate config changes summary: {str(e)}"
         )
