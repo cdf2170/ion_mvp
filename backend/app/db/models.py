@@ -145,24 +145,24 @@ class Device(Base):
     status = Column(SQLEnum(DeviceStatusEnum), nullable=False, default=DeviceStatusEnum.UNKNOWN)
 
     # Agent-specific fields
-    agent_installed = Column(Boolean, nullable=False, default=False)
-    agent_version = Column(String)
-    agent_status = Column(SQLEnum(AgentStatusEnum))
-    agent_last_checkin = Column(DateTime(timezone=True))
-    agent_config_hash = Column(String)  # Hash of agent configuration
+    # TEMP_COMMENTED: agent_installed = Column(Boolean, nullable=False, default=False)
+    # TEMP_COMMENTED: agent_version = Column(String)
+    # TEMP_COMMENTED: agent_status = Column(SQLEnum(AgentStatusEnum))
+    # TEMP_COMMENTED: agent_last_checkin = Column(DateTime(timezone=True))
+    # TEMP_COMMENTED: agent_config_hash = Column(String)  # Hash of agent configuration
 
     # Hardware fingerprinting for correlation
-    hardware_uuid = Column(String)  # Windows: Get-WmiObject Win32_ComputerSystemProduct | Select-Object UUID
-    motherboard_serial = Column(String)  # Additional hardware identifier
-    cpu_id = Column(String)  # CPU identifier
+    # TEMP_COMMENTED: hardware_uuid = Column(String)  # Windows: Get-WmiObject Win32_ComputerSystemProduct | Select-Object UUID
+    # TEMP_COMMENTED: motherboard_serial = Column(String)  # Additional hardware identifier
+    # TEMP_COMMENTED: cpu_id = Column(String)  # CPU identifier
 
     # Real-time agent data (JSONB for flexibility)
-    agent_data = Column(JSON)  # Real-time system state, processes, etc.
+    # TEMP_COMMENTED: agent_data = Column(JSON)  # Real-time system state, processes, etc.
 
     # Relationships
     owner = relationship("CanonicalIdentity", back_populates="devices")
     tags = relationship("DeviceTag", back_populates="device", cascade="all, delete-orphan")
-    agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")
+    # TEMP_COMMENTED: agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")
 
 
 class DeviceTag(Base):
