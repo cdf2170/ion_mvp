@@ -3,6 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
 import traceback
+import time
+from typing import Dict, Any, Optional
+
+# Import cache from separate module
+from backend.app.cache import app_cache
+
+# Import auth for cache endpoints
+try:
+    from backend.app.security.auth import verify_token
+except ImportError:
+    def verify_token(token):
+        return token  # Fallback
 
 # Import settings first
 try:
@@ -244,6 +256,68 @@ def create_app() -> FastAPI:
         """Liveness probe for Railway"""
         return {"status": "alive"}
     
+    @app.get("/v1/system/status")
+    def system_status(_: str = Depends(verify_token)):
+        """Comprehensive system status for frontend header"""
+        status_data = {
+            "system_connected": True,
+            "api_healthy": True,
+            "database_connected": False,
+            "services": {
+                "api": {"status": "healthy", "response_time_ms": None},
+                "database": {"status": "unknown", "last_check": None},
+                "cache": {"status": "healthy", "size": 0}
+            },
+            "timestamp": time.time(),
+            "environment": os.getenv("RAILWAY_ENVIRONMENT", "development")
+        }
+        
+        # Check database connectivity with timing
+        db_start = time.time()
+        try:
+            from backend.app.db.session import engine
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                db_time = round((time.time() - db_start) * 1000, 2)
+                status_data["database_connected"] = True
+                status_data["services"]["database"] = {
+                    "status": "connected", 
+                    "response_time_ms": db_time,
+                    "last_check": time.time()
+                }
+        except Exception as e:
+            db_time = round((time.time() - db_start) * 1000, 2)
+            status_data["database_connected"] = False
+            status_data["system_connected"] = False
+            status_data["api_healthy"] = False
+            status_data["services"]["database"] = {
+                "status": "error", 
+                "error": str(e)[:100],
+                "response_time_ms": db_time,
+                "last_check": time.time()
+            }
+        
+        # Check API response time
+        api_start = time.time()
+        api_time = round((time.time() - api_start) * 1000, 2)
+        status_data["services"]["api"]["response_time_ms"] = api_time
+        
+        # Check cache status
+        try:
+            cache_size = app_cache.size()
+            status_data["services"]["cache"] = {
+                "status": "healthy",
+                "size": cache_size
+            }
+        except Exception as e:
+            status_data["services"]["cache"] = {
+                "status": "error", 
+                "error": str(e)[:50]
+            }
+        
+        return status_data
+    
     @app.get("/v1/cors-debug")
     def cors_debug():
         """Debug CORS configuration"""
@@ -382,6 +456,21 @@ def create_app() -> FastAPI:
             return {"message": "Database fixed - missing columns added"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Fix error: {str(e)}")
+    
+    # Cache management endpoints
+    @app.post("/v1/cache/clear")
+    def clear_cache(_: str = Depends(verify_token)):
+        """Clear all cache entries"""
+        app_cache.clear()
+        return {"message": "Cache cleared successfully"}
+    
+    @app.get("/v1/cache/status")
+    def cache_status(_: str = Depends(verify_token)):
+        """Get cache status and statistics"""
+        return {
+            "cache_size": app_cache.size(),
+            "message": "Cache status retrieved"
+        }
     
     return app
 
