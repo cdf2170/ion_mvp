@@ -136,14 +136,44 @@ def get_devices(
     # We always join with CanonicalIdentity for owner information
     # (This was already done at the beginning of the function)
     
-    # Enhanced search functionality - simplified working version
+    # Enhanced search functionality - comprehensive search across multiple fields
     if query and query.strip():
-        search_term = f"%{query.strip()}%"
-        search_conditions = [
-            Device.name.ilike(search_term),
-            CanonicalIdentity.email.ilike(search_term),
-            CanonicalIdentity.full_name.ilike(search_term)
-        ]
+        search_term = query.strip()
+        search_conditions = []
+        
+        # Core device fields
+        search_pattern = f"%{search_term}%"
+        search_conditions.extend([
+            Device.name.ilike(search_pattern),
+            Device.ip_address.ilike(search_pattern),
+            Device.mac_address.ilike(search_pattern),
+            Device.vlan.ilike(search_pattern),
+            Device.os_version.ilike(search_pattern)
+        ])
+        
+        # Owner information
+        search_conditions.extend([
+            CanonicalIdentity.email.ilike(search_pattern),
+            CanonicalIdentity.full_name.ilike(search_pattern),
+            CanonicalIdentity.department.ilike(search_pattern)
+        ])
+        
+        # Search in device tags
+        tag_devices = db.query(DeviceTag.device_id).filter(
+            DeviceTag.tag.ilike(search_pattern)
+        ).subquery()
+        search_conditions.append(Device.id.in_(db.query(tag_devices.c.device_id)))
+        
+        # Search in group memberships
+        group_devices = db.query(GroupMembership.cid).filter(
+            or_(
+                GroupMembership.group_name.ilike(search_pattern),
+                GroupMembership.group_type.ilike(search_pattern)
+            )
+        ).subquery()
+        search_conditions.append(Device.owner_cid.in_(db.query(group_devices.c.cid)))
+        
+        # Apply all search conditions with OR logic
         base_query = base_query.filter(or_(*search_conditions))
     
     # Apply sorting

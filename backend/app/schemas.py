@@ -2,6 +2,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_valid
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
+import re
+import ipaddress
+import json
 from backend.app.db.models import (
     StatusEnum, DeviceStatusEnum, DeviceTagEnum, PolicyTypeEnum, 
     PolicySeverityEnum, ConfigChangeTypeEnum, ActivityTypeEnum,
@@ -305,6 +308,46 @@ class DeviceCreateRequest(BaseModel):
     compliant: bool = Field(True, description="Compliance status")
     tags: List[DeviceTagEnum] = Field(default=[], description="List of device tags")
 
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 3:
+            raise ValueError('Device name must be at least 3 characters long')
+        if len(v) > 100:
+            raise ValueError('Device name must be less than 100 characters')
+        return v.strip()
+
+    @field_validator('ip_address')
+    @classmethod
+    def validate_ip_address(cls, v):
+        if v is None:
+            return v
+        try:
+            ipaddress.ip_address(v.strip())
+            return v.strip()
+        except ValueError:
+            raise ValueError('Invalid IP address format')
+
+    @field_validator('mac_address')
+    @classmethod
+    def validate_mac_address(cls, v):
+        if v is None:
+            return v
+        # MAC address pattern: XX:XX:XX:XX:XX:XX
+        mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+        if not re.match(mac_pattern, v.strip()):
+            raise ValueError('Invalid MAC address format (expected XX:XX:XX:XX:XX:XX)')
+        return v.strip().lower()
+
+    @field_validator('os_version')
+    @classmethod
+    def validate_os_version(cls, v):
+        if v is None:
+            return v
+        if len(v.strip()) > 200:
+            raise ValueError('OS version must be less than 200 characters')
+        return v.strip()
+
 
 class DeviceListResponse(BaseModel):
     """
@@ -391,6 +434,36 @@ class PolicyCreateRequest(BaseModel):
     severity: PolicySeverityEnum = Field(PolicySeverityEnum.MEDIUM, description="Policy severity level")
     enabled: bool = Field(True, description="Whether policy should be enabled")
     configuration: Optional[str] = Field(None, description="Policy configuration as JSON string")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 3:
+            raise ValueError('Policy name must be at least 3 characters long')
+        if len(v) > 200:
+            raise ValueError('Policy name must be less than 200 characters')
+        return v.strip()
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        if v is None:
+            return v
+        if len(v.strip()) > 1000:
+            raise ValueError('Policy description must be less than 1000 characters')
+        return v.strip()
+
+    @field_validator('configuration')
+    @classmethod
+    def validate_configuration(cls, v):
+        if v is None:
+            return v
+        try:
+            # Validate that it's valid JSON
+            json.loads(v)
+            return v
+        except json.JSONDecodeError:
+            raise ValueError('Configuration must be valid JSON')
 
 
 class PolicyUpdateRequest(BaseModel):
