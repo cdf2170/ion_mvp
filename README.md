@@ -2,380 +2,205 @@
 
 P-y API   PSQL     .
 
-## 
-
-- **API**   API 
-- **PSQL**   SQLAy . ORM
-- **A**  
-- **  **  API y
-- **CORS**    
-- **P, ,  **   
-- **D **    
-
-## API E
-
-### U (Iy M)
-- `GET ///` - L   , ,  
-  - Qy : ``, `_z`, ``, ``, `y`
-- `GET ////` - G     , , 
-- `PUT ////` - U  y  (,  , .)
-- `POST ////` - M    ( )
-- `POST /////` - S  
-- `POST ////-` - R     y
-- `POST ////y` - T yz      y
-- `POST ////-` - P  y    
-- `POST ////-/` - E  y 
-
-### D
-- `GET ///` - L   , ,  
-  - Qy : ``, `_z`, ``, `_`, ``, ``, ``, `y`
-- `GET ////_` - G   
-- `PUT ////_` - U  (,  ,  )
-- `DELETE ////_` - D 
-- `GET ////-/y` - G  y y 
-
-#### D Sy E (D Ay)
-- `GET ////y/` - G   y (, MDM, YOD)
-- `GET ////y/y-` - D  y  
-- `GET ////y/` - C   
-- `GET ////y/y-` - D  y  (, -, .)
-- `GET ////y/y-` - D  y VLAN
-- `GET ////y/-y` - R y y (, , )
-- `GET ////y/y-` - D  y  y
-- `GET ////y/-y` - R y   
-
-### API M
-- `GET ///` - L API     
-  - Qy : ``, `_z`, ``, ``, ``, `y_`, `y`
-- `GET ////_` - G API  
-- `POST ///` - C  API 
-- `PUT ////_` - U API 
-- `DELETE ////_` - D API 
-- `POST ////_/` - T API  
-- `POST ////_/y` - T  y
-- `GET ////_/` - G y 
-- `PUT ////_/` - U  
-- `GET /////y` - G API  y
-
-### Py M
-- `GET ///` - L     
-  - Qy : ``, `_z`, `y_y`, `y`, ``, `y`
-- `GET ////y_` - G y 
-- `POST ///` - C  y
-- `PUT ////y_` - U y
-- `DELETE ////y_` - D y
-- `POST ////y_/` - E y
-- `POST ////y_/` - D y
-- `GET ////y/y-y` - G y y y y
-- `GET ////y/y-y` - G y y y y
-
-### Hy & A
-- `GET ///y/` - G   y
-  - Qy : ``, `_z`, `y_y`, `y_`, `_y`, `_y`, `y_`
-- `GET ///y/y` - G  y y
-  - Qy : ``, `_z`, `_`, `_`, `y_y`, `_y`, `_`, `y_`
-- `POST ///y/y` - C  y 
-- `GET ///y/y/y/y-y` - G y y y y
-- `GET ///y/y/y/y-` - G y y y  
-- `GET ///y//y/-` - G    y
-- `GET ///y/` - G     y
-
-### Sy
-- `GET /` - API 
-- `GET /` - H  
-
-##  I G
-
-### A
-A API     :
-```
-  = 
-  'Az': ' --',
-  'C-Ty': '/'
-
-```
-
-### Ky D Ty  
-
-#### ULIS (  )
-```y
- ULI 
-  : ;           // C Iy UUID
-  : ;         // Py 
-  : ;    // D 
-  _: ;     // ISO 
-  : "A" | "D";
-
-```
-
-#### UDS (   )
-```y
- UD 
-  : ;
-  : ;
-  _: ;
-  : ;
-  : ;
-  ?: ;
-  ?: ;
-  _: ;
-  : "A" | "D";
-  _: ;
-  : D[];
-  : GM[];
-  : A[];
-
-```
-
-#### DS
-```y
- D 
-  : ;            // D UUID
-  : ;          // H- 
-  _: ;     // ISO 
-  : ;    // C 
-
-```
-
-### C API P
-
-#### P
-A   :
-```y
- PR<T> 
-  : T[];           // /   
-  : ;        //   
-  : ;         //   (-)
-  _z: ;    //   
-  _: ;  //  
-
-```
-
-#### E H
-API   HTTP  :
-- ``: S
-- ``:  R ( )
-- ``: Uz (/ )
-- ``: N 
-- ``: V E
-
-#### E API C
-
-**G   :**
-```
-  =  ('///?=&_z=&y=&=E', 
-  
-);
-  =  .();
-```
-
-**U  :**
-```
-  =  (`////`, 
-  : 'PUT',
-  ,
-  y: JSON.y(
-    : 'M',
-    : 'S M'
-  )
-);
-```
-
-**M  :**
-```
-  =  ('////', 
-  : 'POST',
-  ,
-  y: JSON.y(
-    _: '---',
-    _: '---',
-    _: ,
-    _: ,
-    _: 
-  )
-);
-```
-
-**G  y:**
-```
-  =  ('////-/y', 
-  
-);
-// R   -  
-```
-
-## Q S
-
-> ** D?** S [RONTEND_SETUP.](RONTEND_SETUP.)     !
-
-### . S   
-
-```
-# C     
- ///MVP
-
-# C  
-y. -  
- //
-
-# I 
   - .
-```
-
-### . C 
 
 ```
-# Cy   
- . .
 
-# E .  y  (,     )
-```
+# MVP Backend
 
-### . S PSQL
+This repository contains a production oriented FastAPI backend for an identity and device management MVP. The backend exposes versioned REST endpoints under the `/v1` prefix and uses PostgreSQL for persistence. It includes utilities for seeding, migration, and a small administrative surface for maintenance tasks.
 
-```
-# S PSQL  D C
--  -
+## Project overview
 
-# W  PSQL   y
--  
-```
+- Framework: FastAPI
+- Database: PostgreSQL (SQLAlchemy + Alembic)
+- Auth: Bearer token 
+- API prefix: `/v1`
+- Repo entrypoint: `backend/app/main.py` (app factory: `create_app()`)
 
-### . R  
+## Repository layout
 
-```
-# R A 
-  
-```
+- `backend/app/` - application package
+  - `main.py` - FastAPI app factory and health/debug endpoints
+  - `config.py` - application configuration (imported by `main.py` when present)
+  - `schemas.py` - Pydantic data models used by the API
+  - `routers/` - API routers (users, devices, apis, policies, history, groups, access, oauth)
+  - `db/` - database models and session management
+- `alembic/` - migrations
+- `seed_db.py` - database seeding helper used by the admin endpoint
+- deployment and helper scripts at repo root: `start_backend.sh`, `deploy_railway.sh`, `start_production.sh`, `Dockerfile.bak`, `Procfile` and related docs
 
-### . S  
+## Quick start (local development)
 
-```
-# P    ( )
-y _.y
-```
+Prerequisites:
 
-### . S  API 
+- Python 3.11+ (the project uses modern Pydantic patterns)
+- PostgreSQL (local or via Docker)
+- Recommended: a virtual environment or `venv`/`pipx`
 
-```
-# S  API 
-y - ..
+1. Create and activate a virtual environment
 
-# S    : ://:
-# API  : ://:/
-```
+  python3 -m venv .venv
+  source .venv/bin/activate
 
-## A
+2. Install dependencies
 
-A `////*`     .
+  pip install -r requirements.txt
 
-**D :** `--`
+3. Configure environment variables
 
-E :
-```
- -H "Az:  --" ://:///
-```
 
-## D S
+4. Run database migrations (Alembic)
 
-### CIy
-- Py  y   
-- : , , , _, , , .
+  alembic upgrade head
 
-### D
-- U    
-- : , , _, , _
+5. Start the app (development)
 
-### GM
-- U  
-- : , , _
+  uvicorn backend.app.main:app --reload --port 8000
 
-### A
-- E  
-- : , , , _, 
+If you want to use the included scripts, see `start_backend.sh` and `start_production.sh` for common patterns used in this repository.
 
-## D
+## Important endpoints and developer helpers
 
-### R 
+The app registers multiple routers under the `/v1` prefix. The most relevant endpoints and helpers are:
 
-```
-# C  
-  -- - ""
+- `/v1/health` - Health check (includes basic database connectivity check)
+- `/v1/readiness` - Readiness probe (returns 503 if DB not reachable)
+- `/v1/liveness` - Liveness probe
+- `/v1/debug/routes` - Returns the registered routes and import errors for debugging
+- `/v1/api-info` - Small machine-friendly summary of important API endpoints and auth
 
-# Ay 
-  
+Admin helpers (protected by token dependency in development):
 
-# R 
-  -
-```
+- `POST /v1/admin/seed-database` - Run `seed_db.seed_database()` to populate sample data
+- `POST /v1/admin/run-migration` - Attempt to run `run_migration.py` in the deployed container
+- `POST /v1/admin/fix-database` - Run a small set of ALTER TABLE statements to add missing columns
 
-### D 
+API routers (high level)
 
-```
-# R   
--  -
--  -
-  
-y _.y
-```
+- `users` - list, detail, scan, merge, password reset, sync, advanced merge
+- `devices` - list, detail, update, delete, device summaries and dashboard helpers
+- `apis` - manage external API connections (create, test, sync, logs)
+- `policies` - manage security policies and summaries
+- `history` - configuration and activity history, timeline endpoints
+- `groups`, `access`, `oauth` - additional access and OAuth management routers when enabled
 
-## E V
+For exact route listings, use the debug endpoint: `/v1/debug/routes`.
 
-| V | D | D |
-|----------|---------|-------------|
-| `DATAASE_URL` | `://:@:/_` | PSQL   |
-| `DEMO_API_TOKEN` | `--` |    API  |
-| `ALLOWED_ORIGINS` | `://:` | CORS   (-) |
-| `APP_NAME` | `MVP ` | A  |
-| `DEUG` | `` | E   |
+## Authentication
 
-## P S
 
-```
-MVP/
- /
-    /
-        /
-           .y      # SQLAy 
-           .y     # D  
-        /
-           .y       # U API 
-        y/
-           .y        # A 
-        .y          # C 
-        .y           # API 
-        .y        # Py  
- /                  # D 
- -.y        # PSQL 
- .          # Py 
- _.y               # D  
- .              # E 
-```
+## Full API routes
 
-## P Dy
+This is a complete, code-accurate list of routes registered by the application (no emojis). OAuth endpoints are listed separately since the OAuth router is mounted without the `/v1` prefix.
 
-### Ry (R)
-S [RAILWAY_DEPLOY.](RAILWAY_DEPLOY.)   Ry y .
+Top-level (main app)
+- GET  /                     — root: basic app status
+- GET  /health               — legacy Railway health
+- GET  /api/devices          — redirect (301) -> /v1/devices
+- GET  /api/health           — alias to health check
 
-**Q Ry S:**
-```
-  - @y/
-y 
-y 
-y  
-y 
-```
+Versioned API (prefix: /v1) — probes & helpers
+- GET  /v1/health
+- GET  /v1/debug/routes
+- GET  /v1/readiness
+- GET  /v1/liveness
+- GET  /v1/cors-debug
+- GET  /v1/api-info
+- POST /v1/admin/seed-database
+- POST /v1/admin/run-migration
+- POST /v1/admin/fix-database
 
-### M Dy
-  :
+OAuth endpoints (mounted at `/oauth`)
+- GET  /oauth/.well-known/openid-configuration
+- GET  /oauth/authorize
+- POST /oauth/callback
+- POST /oauth/token
+- GET  /oauth/userinfo
+- GET  /oauth/jwks
+- GET  /oauth/logout
+- GET  /oauth/test-users
 
-. S `DEUG=`   
-. U   `DEMO_API_TOKEN`
-. C  `DATAASE_URL`  y PSQL 
-. S  `ALLOWED_ORIGINS`  y  
-. U   WSGI   G:
+Users router (`/v1/users`)
+- GET  /v1/users
+- GET  /v1/users/{cid}
+- POST /v1/users/scan/{cid}
+- PUT  /v1/users/{cid}
+- POST /v1/users/merge
+- POST /v1/users/password-reset
+- POST /v1/users/sync
+- POST /v1/users/advanced-merge
+- POST /v1/users/advanced-merge/execute
 
-```
-  
- -  - ..UW ..: -- ...:
-```
+Devices router (`/v1/devices`)
+- GET    /v1/devices
+- GET    /v1/devices/{device_id}
+- PUT    /v1/devices/{device_id}
+- DELETE /v1/devices/{device_id}
+- GET    /v1/devices/non-compliant/summary
+- GET    /v1/devices/summary/counts
+- GET    /v1/devices/summary/by-status
+- GET    /v1/devices/summary/compliance
+- GET    /v1/devices/summary/by-tag
+- GET    /v1/devices/summary/by-vlan
+- GET    /v1/devices/summary/recent-activity
+- GET    /v1/devices/summary/by-os
+- GET    /v1/devices/summary/risk-analysis
+
+API management router (`/v1/apis`)
+- GET    /v1/apis
+- GET    /v1/apis/{connection_id}
+- POST   /v1/apis
+- PUT    /v1/apis/{connection_id}
+- DELETE /v1/apis/{connection_id}
+- POST   /v1/apis/{connection_id}/test
+- POST   /v1/apis/{connection_id}/sync
+- GET    /v1/apis/{connection_id}/logs
+- PUT    /v1/apis/{connection_id}/tags
+- GET    /v1/apis/status/summary
+- POST   /v1/apis/sync-all
+- GET    /v1/apis/orphans
+- POST   /v1/apis/improve-device-names
+- POST   /v1/apis/fix-misnamed-devices
+
+Policies router (`/v1/policies`)
+- GET    /v1/policies
+- GET    /v1/policies/{policy_id}
+- POST   /v1/policies
+- PUT    /v1/policies/{policy_id}
+- DELETE /v1/policies/{policy_id}
+- POST   /v1/policies/{policy_id}/enable
+- POST   /v1/policies/{policy_id}/disable
+- GET    /v1/policies/summary/by-type
+- GET    /v1/policies/summary/by-severity
+
+History / audit router (`/v1/history`)
+- GET  /v1/history/config
+- GET  /v1/history/activity
+- POST /v1/history/activity
+- GET  /v1/history/activity/summary/by-type
+- GET  /v1/history/activity/summary/by-risk
+- GET  /v1/history/config/summary/recent-changes
+- GET  /v1/history/timeline
+
+Groups router (`/v1/groups`)
+- GET  /v1/groups
+- GET  /v1/groups/{group_name}/members
+- GET  /v1/groups/summary/by-type
+- GET  /v1/groups/departments
+- GET  /v1/groups/user/{cid}/memberships
+
+Access management router (`/v1/access`)
+- GET  /v1/access
+- GET  /v1/access/audit
+- GET  /v1/access/user/{cid}
+- GET  /v1/access/user/{cid}/audit
+- GET  /v1/access/summary
+- GET  /v1/access/compliance/{framework}
+
+Notes:
+- Most business endpoints require a Bearer token via the `verify_token` dependency.
+- The OAuth router is mounted without the `/v1` prefix.
+- For a runtime-accurate dump of registered routes, call the running app's debug endpoint: `/v1/debug/routes`.
+
+If you want, I can generate an `API_REFERENCE.md` with this list formatted as a table and include parameters and response model references.
