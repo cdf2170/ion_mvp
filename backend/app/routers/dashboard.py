@@ -369,47 +369,48 @@ def get_system_wide_overview(
         cutoff_date = datetime.utcnow() - timedelta(days=days_back)
         
         # === DEVICES METRICS ===
-        total_devices = db.query(Device).count()
-        connected_devices = db.query(Device).filter(Device.status == DeviceStatusEnum.CONNECTED).count()
-        compliant_devices = db.query(Device).filter(Device.compliant == True).count()
-        devices_needing_attention = db.query(Device).filter(
+        # Use explicit column selection to avoid schema issues
+        total_devices = db.query(func.count(Device.id)).scalar()
+        connected_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.CONNECTED).scalar()
+        compliant_devices = db.query(func.count(Device.id)).filter(Device.compliant == True).scalar()
+        devices_needing_attention = db.query(func.count(Device.id)).filter(
             or_(
                 Device.compliant == False,
                 Device.last_seen < cutoff_date,
                 Device.status == DeviceStatusEnum.UNKNOWN
             )
-        ).count()
+        ).scalar()
         
         # === USERS METRICS ===
-        total_users = db.query(CanonicalIdentity).count()
-        active_users = db.query(CanonicalIdentity).filter(
+        total_users = db.query(func.count(CanonicalIdentity.cid)).scalar()
+        active_users = db.query(func.count(CanonicalIdentity.cid)).filter(
             CanonicalIdentity.last_seen >= cutoff_date
-        ).count()
-        users_with_devices = db.query(CanonicalIdentity).join(
+        ).scalar()
+        users_with_devices = db.query(func.count(func.distinct(CanonicalIdentity.cid))).join(
             Device, CanonicalIdentity.cid == Device.owner_cid
-        ).distinct().count()
+        ).scalar()
         
         # === GROUPS METRICS ===
-        total_groups = db.query(GroupMembership.group_name).distinct().count()
-        total_memberships = db.query(GroupMembership).count()
-        users_in_groups = db.query(GroupMembership.cid).distinct().count()
+        total_groups = db.query(func.count(func.distinct(GroupMembership.group_name))).scalar()
+        total_memberships = db.query(func.count(GroupMembership.cid)).scalar()
+        users_in_groups = db.query(func.count(func.distinct(GroupMembership.cid))).scalar()
         
         # === ACTIVITY METRICS ===
-        recent_config_changes = db.query(ConfigHistory).filter(
+        recent_config_changes = db.query(func.count(ConfigHistory.id)).filter(
             ConfigHistory.changed_at >= cutoff_date
-        ).count()
+        ).scalar()
         
-        recent_activity = db.query(ActivityHistory).filter(
+        recent_activity = db.query(func.count(ActivityHistory.id)).filter(
             ActivityHistory.created_at >= cutoff_date
-        ).count()
+        ).scalar()
         
         # === SECURITY METRICS ===
-        security_alerts = db.query(Device).filter(
+        security_alerts = db.query(func.count(Device.id)).filter(
             and_(
                 Device.compliant == False,
                 Device.last_seen < datetime.utcnow() - timedelta(days=7)
             )
-        ).count()
+        ).scalar()
         
         # === PERFORMANCE INDICATORS ===
         connectivity_rate = (connected_devices / total_devices * 100) if total_devices > 0 else 0
