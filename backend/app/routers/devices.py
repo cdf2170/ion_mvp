@@ -437,6 +437,67 @@ def rename_device(
         )
 
 
+@router.put("/{device_id}/tags", response_model=DeviceSchema)
+def retag_device(
+    device_id: UUID,
+    tag_data: DeviceTagRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Update device tags (replace all existing tags).
+    
+    **Frontend Integration Notes:**
+    - Replaces ALL existing tags with the provided list
+    - To add a tag: include all existing tags + new tag
+    - To remove a tag: include all existing tags except the one to remove
+    - Empty list removes all tags
+    - Returns updated device information with new tags
+    
+    Args:
+        device_id: Device's unique identifier
+        tag_data: New list of tags to set for the device
+    
+    Returns:
+        Updated device information with new tags
+        
+    Raises:
+        404: Device not found
+        400: Invalid tag values
+    """
+    
+    device = db.query(Device).filter(Device.id == device_id).first()
+    
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device with ID {device_id} not found"
+        )
+    
+    try:
+        # Remove all existing tags for this device
+        db.query(DeviceTag).filter(DeviceTag.device_id == device_id).delete()
+        
+        # Add new tags
+        for tag_enum in tag_data.tags:
+            new_tag = DeviceTag(
+                device_id=device_id,
+                tag=tag_enum
+            )
+            db.add(new_tag)
+        
+        db.commit()
+        db.refresh(device)
+        return DeviceSchema.model_validate(device)
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update device tags: {str(e)}"
+        )
+
+
 @router.delete("/{device_id}")
 def delete_device(
     device_id: UUID,
