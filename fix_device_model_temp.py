@@ -20,8 +20,8 @@ def create_temp_device_model():
     with open(model_file, 'r') as f:
         content = f.read()
     
-    # Comment out agent columns temporarily
-    agent_columns = [
+    # Comment out agent columns and models temporarily
+    agent_items = [
         "agent_installed = Column(Boolean, nullable=False, default=False)",
         "agent_version = Column(String)",
         "agent_status = Column(SQLEnum(AgentStatusEnum))",
@@ -31,11 +31,15 @@ def create_temp_device_model():
         "motherboard_serial = Column(String)",
         "cpu_id = Column(String)",
         "agent_data = Column(JSON)",
-        'agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")'
+        'agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")',
+        "class AgentEventTypeEnum(enum.Enum):",
+        "class AgentEvent(Base):",
+        'device = relationship("Device", back_populates="agent_events")',
+        'parent_event = relationship("AgentEvent", remote_side=[id])'
     ]
     
-    for column in agent_columns:
-        content = content.replace(column, f"# TEMP_COMMENTED: {column}")
+    for item in agent_items:
+        content = content.replace(item, f"# TEMP_COMMENTED: {item}")
     
     # Write the modified content
     with open(model_file, 'w') as f:

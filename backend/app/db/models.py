@@ -145,24 +145,24 @@ class Device(Base):
     status = Column(SQLEnum(DeviceStatusEnum), nullable=False, default=DeviceStatusEnum.UNKNOWN)
 
     # Agent-specific fields
-    # TEMP_COMMENTED: agent_installed = Column(Boolean, nullable=False, default=False)
-    # TEMP_COMMENTED: agent_version = Column(String)
-    # TEMP_COMMENTED: agent_status = Column(SQLEnum(AgentStatusEnum))
-    # TEMP_COMMENTED: agent_last_checkin = Column(DateTime(timezone=True))
-    # TEMP_COMMENTED: agent_config_hash = Column(String)  # Hash of agent configuration
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_installed = Column(Boolean, nullable=False, default=False)
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_version = Column(String)
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_status = Column(SQLEnum(AgentStatusEnum))
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_last_checkin = Column(DateTime(timezone=True))
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_config_hash = Column(String)  # Hash of agent configuration
 
     # Hardware fingerprinting for correlation
-    # TEMP_COMMENTED: hardware_uuid = Column(String)  # Windows: Get-WmiObject Win32_ComputerSystemProduct | Select-Object UUID
-    # TEMP_COMMENTED: motherboard_serial = Column(String)  # Additional hardware identifier
-    # TEMP_COMMENTED: cpu_id = Column(String)  # CPU identifier
+    # TEMP_COMMENTED: # TEMP_COMMENTED: hardware_uuid = Column(String)  # Windows: Get-WmiObject Win32_ComputerSystemProduct | Select-Object UUID
+    # TEMP_COMMENTED: # TEMP_COMMENTED: motherboard_serial = Column(String)  # Additional hardware identifier
+    # TEMP_COMMENTED: # TEMP_COMMENTED: cpu_id = Column(String)  # CPU identifier
 
     # Real-time agent data (JSONB for flexibility)
-    # TEMP_COMMENTED: agent_data = Column(JSON)  # Real-time system state, processes, etc.
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_data = Column(JSON)  # Real-time system state, processes, etc.
 
     # Relationships
     owner = relationship("CanonicalIdentity", back_populates="devices")
     tags = relationship("DeviceTag", back_populates="device", cascade="all, delete-orphan")
-    # TEMP_COMMENTED: agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")
+    # TEMP_COMMENTED: # TEMP_COMMENTED: agent_events = relationship("AgentEvent", back_populates="device", cascade="all, delete-orphan")
 
 
 class DeviceTag(Base):
@@ -176,7 +176,7 @@ class DeviceTag(Base):
     device = relationship("Device", back_populates="tags")
 
 
-class AgentEventTypeEnum(enum.Enum):
+# TEMP_COMMENTED: class AgentEventTypeEnum(enum.Enum):
     LOGIN = "Login"
     LOGOUT = "Logout"
     PROCESS_START = "Process Start"
@@ -195,7 +195,7 @@ class AgentEventTypeEnum(enum.Enum):
     HEARTBEAT = "Heartbeat"
 
 
-class AgentEvent(Base):
+# TEMP_COMMENTED: class AgentEvent(Base):
     __tablename__ = "agent_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -217,8 +217,8 @@ class AgentEvent(Base):
     parent_event_id = Column(UUID(as_uuid=True), ForeignKey("agent_events.id"))
 
     # Relationships
-    device = relationship("Device", back_populates="agent_events")
-    parent_event = relationship("AgentEvent", remote_side=[id])
+    # TEMP_COMMENTED: device = relationship("Device", back_populates="agent_events")
+    # TEMP_COMMENTED: parent_event = relationship("AgentEvent", remote_side=[id])
 
 
 class GroupTypeEnum(enum.Enum):
