@@ -370,39 +370,44 @@ def get_system_wide_overview(
         
         # === DEVICES METRICS ===
         # Use explicit column selection to avoid schema issues
-        total_devices = db.query(func.count(Device.id)).scalar()
-        connected_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.CONNECTED).scalar()
-        compliant_devices = db.query(func.count(Device.id)).filter(Device.compliant == True).scalar()
+        total_devices = db.query(func.count(Device.id)).scalar() or 0
+        connected_devices = db.query(func.count(Device.id)).filter(Device.status == DeviceStatusEnum.CONNECTED).scalar() or 0
+        compliant_devices = db.query(func.count(Device.id)).filter(Device.compliant == True).scalar() or 0
         devices_needing_attention = db.query(func.count(Device.id)).filter(
             or_(
                 Device.compliant == False,
                 Device.last_seen < cutoff_date,
                 Device.status == DeviceStatusEnum.UNKNOWN
             )
-        ).scalar()
+        ).scalar() or 0
         
         # === USERS METRICS ===
-        total_users = db.query(func.count(CanonicalIdentity.cid)).scalar()
+        total_users = db.query(func.count(CanonicalIdentity.cid)).scalar() or 0
         active_users = db.query(func.count(CanonicalIdentity.cid)).filter(
             CanonicalIdentity.last_seen >= cutoff_date
-        ).scalar()
+        ).scalar() or 0
         users_with_devices = db.query(func.count(func.distinct(CanonicalIdentity.cid))).join(
             Device, CanonicalIdentity.cid == Device.owner_cid
-        ).scalar()
+        ).scalar() or 0
         
         # === GROUPS METRICS ===
-        total_groups = db.query(func.count(func.distinct(GroupMembership.group_name))).scalar()
-        total_memberships = db.query(func.count(GroupMembership.cid)).scalar()
-        users_in_groups = db.query(func.count(func.distinct(GroupMembership.cid))).scalar()
+        total_groups = db.query(func.count(func.distinct(GroupMembership.group_name))).scalar() or 0
+        total_memberships = db.query(func.count(GroupMembership.cid)).scalar() or 0
+        users_in_groups = db.query(func.count(func.distinct(GroupMembership.cid))).scalar() or 0
         
         # === ACTIVITY METRICS ===
         recent_config_changes = db.query(func.count(ConfigHistory.id)).filter(
             ConfigHistory.changed_at >= cutoff_date
-        ).scalar()
+        ).scalar() or 0
         
-        recent_activity = db.query(func.count(ActivityHistory.id)).filter(
-            ActivityHistory.created_at >= cutoff_date
-        ).scalar()
+        # Handle ActivityHistory carefully (table might not exist or have different schema)
+        try:
+            recent_activity = db.query(func.count(ActivityHistory.id)).filter(
+                ActivityHistory.created_at >= cutoff_date
+            ).scalar() or 0
+        except Exception:
+            # Fallback if ActivityHistory table has issues
+            recent_activity = 0
         
         # === SECURITY METRICS ===
         security_alerts = db.query(func.count(Device.id)).filter(
@@ -410,7 +415,7 @@ def get_system_wide_overview(
                 Device.compliant == False,
                 Device.last_seen < datetime.utcnow() - timedelta(days=7)
             )
-        ).scalar()
+        ).scalar() or 0
         
         # === PERFORMANCE INDICATORS ===
         connectivity_rate = (connected_devices / total_devices * 100) if total_devices > 0 else 0
