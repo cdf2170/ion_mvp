@@ -464,6 +464,31 @@ def create_app() -> FastAPI:
                 )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error running migration: {str(e)}")
+
+    @app.post("/v1/admin/run-agent-migration")
+    def run_agent_migration_admin(_: str = Depends(verify_token)):
+        """Run agent support database migration"""
+        try:
+            import subprocess
+            import sys
+            
+            # Run the agent migration script
+            result = subprocess.run([sys.executable, "run_agent_migration.py"], 
+                                  capture_output=True, text=True, cwd="/app")
+            
+            if result.returncode == 0:
+                return {
+                    "status": "success",
+                    "message": "Agent migration completed successfully",
+                    "output": result.stdout
+                }
+            else:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Agent migration failed: {result.stderr}"
+                )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error running agent migration: {str(e)}")
     
     @app.post("/v1/admin/fix-database")
     def fix_database(_: str = Depends(verify_token)):
