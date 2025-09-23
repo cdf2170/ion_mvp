@@ -166,8 +166,32 @@ def get_users(
     # Apply pagination using utility function
     users, total, total_pages = apply_pagination(base_query, page, page_size)
     
+    # Enhance users with device and group counts
+    enhanced_users = []
+    for user in users:
+        # Get device count for this user
+        device_count = db.query(Device).filter(Device.owner_cid == user.cid).count()
+        
+        # Get group membership count for this user
+        groups_count = db.query(GroupMembership).filter(GroupMembership.cid == user.cid).count()
+        
+        # Create enhanced user object
+        enhanced_user = UserListItemSchema(
+            cid=user.cid,
+            email=user.email,
+            full_name=user.full_name,
+            department=user.department,
+            role=user.role,
+            location=user.location,
+            last_seen=user.last_seen,
+            status=user.status,
+            device_count=device_count,
+            groups_count=groups_count
+        )
+        enhanced_users.append(enhanced_user)
+    
     return UserListResponse(
-        users=[UserListItemSchema.model_validate(user) for user in users],
+        users=enhanced_users,
         total=total,
         page=page,
         page_size=page_size,
@@ -674,4 +698,110 @@ def execute_advanced_merge(
         raise HTTPException(
             status_code=500, 
             detail=f"Merge failed: {str(e)}"
+        )
+
+
+@router.get("/summary")
+def get_users_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get users summary statistics for dashboard cards.
+    
+    **Frontend Integration Notes:**
+    - Provides key user metrics for dashboard cards
+    - Includes user counts, status breakdown, department distribution
+    - Perfect for users summary widgets
+    
+    Returns:
+        Users summary with counts, status breakdown, and key metrics
+    """
+    
+    try:
+        # Total users
+        total_users = db.query(CanonicalIdentity).count()
+        
+        # Users by status
+        active_users = db.query(CanonicalIdentity).filter(
+            CanonicalIdentity.status == StatusEnum.ACTIVE
+        ).count()
+        disabled_users = total_users - active_users
+        
+        # Users with devices
+        users_with_devices = db.query(CanonicalIdentity).join(Device).distinct().count()
+        users_without_devices = total_users - users_with_devices
+        
+        # Department breakdown (top 5)
+        department_stats = db.query(
+            CanonicalIdentity.department,
+            func.count(CanonicalIdentity.cid).label('count')
+        ).group_by(CanonicalIdentity.department).order_by(
+            func.count(CanonicalIdentity.cid).desc()
+        ).limit(5).all()
+        
+        # Role breakdown (top 5)
+        role_stats = db.query(
+            CanonicalIdentity.role,
+            func.count(CanonicalIdentity.cid).label('count')
+        ).group_by(CanonicalIdentity.role).order_by(
+            func.count(CanonicalIdentity.cid).desc()
+        ).limit(5).all()
+        
+        # Location breakdown (top 5)
+        location_stats = db.query(
+            CanonicalIdentity.location,
+            func.count(CanonicalIdentity.cid).label('count')
+        ).filter(CanonicalIdentity.location.isnot(None)).group_by(
+            CanonicalIdentity.location
+        ).order_by(func.count(CanonicalIdentity.cid).desc()).limit(5).all()
+        
+        # Recent user activity (users seen in last 7 days)
+        from datetime import datetime, timedelta
+        week_ago = datetime.utcnow() - timedelta(days=7)
+        recent_active_users = db.query(CanonicalIdentity).filter(
+            CanonicalIdentity.last_seen >= week_ago
+        ).count()
+        
+        return {
+            "overview": {
+                "total_users": total_users,
+                "active_users": active_users,
+                "disabled_users": disabled_users,
+                "users_with_devices": users_with_devices,
+                "users_without_devices": users_without_devices,
+                "recent_active_users": recent_active_users
+            },
+            "status_breakdown": {
+                "active": active_users,
+                "disabled": disabled_users,
+                "active_percentage": round((active_users / total_users * 100), 1) if total_users > 0 else 0
+            },
+            "device_association": {
+                "with_devices": users_with_devices,
+                "without_devices": users_without_devices,
+                "device_association_rate": round((users_with_devices / total_users * 100), 1) if total_users > 0 else 0
+            },
+            "top_departments": [
+                {"department": dept, "count": count} 
+                for dept, count in department_stats
+            ],
+            "top_roles": [
+                {"role": role, "count": count} 
+                for role, count in role_stats
+            ],
+            "top_locations": [
+                {"location": location, "count": count} 
+                for location, count in location_stats
+            ],
+            "activity": {
+                "recent_active": recent_active_users,
+                "activity_rate": round((recent_active_users / total_users * 100), 1) if total_users > 0 else 0
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate users summary: {str(e)}"
         )

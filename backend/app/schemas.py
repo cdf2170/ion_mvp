@@ -117,22 +117,32 @@ class AccountSchema(BaseModel):
 
 class UserListItemSchema(BaseModel):
     """
-    Minimal user information for list views.
+    Enhanced user information for list views including device relationships.
     
     Attributes:
         cid: Canonical Identity - unique user identifier across all systems
         email: Primary email address
+        full_name: User's full name
         department: Department name
+        role: Job title/role
+        location: Physical location
         last_seen: Last time user was active
         status: User status (Active/Disabled)
+        device_count: Number of devices owned by user
+        groups_count: Number of group memberships
     """
     model_config = ConfigDict(from_attributes=True)
     
     cid: UUID = Field(..., description="Canonical Identity - unique user identifier")
     email: str = Field(..., description="Primary email address")
+    full_name: str = Field(..., description="User's full name")
     department: str = Field(..., description="Department name")
+    role: str = Field(..., description="Job title/role")
+    location: Optional[str] = Field(None, description="Physical location")
     last_seen: datetime = Field(..., description="Last time user was active")
     status: StatusEnum = Field(..., description="User status (Active/Disabled)")
+    device_count: int = Field(..., description="Number of devices owned by user")
+    groups_count: int = Field(..., description="Number of group memberships")
 
 
 class UserDetailSchema(BaseModel):
