@@ -370,6 +370,38 @@ class DeviceMergeResponse(BaseModel):
     deleted_device_ids: List[UUID] = Field(..., description="Device IDs that were deleted")
 
 
+class DashboardSummaryCard(BaseModel):
+    """
+    Individual summary card for dashboard.
+    
+    Attributes:
+        title: Card title
+        value: Main numeric value
+        subtitle: Additional context
+        trend: Trend indicator (up/down/neutral)
+        change_percent: Percentage change from previous period
+    """
+    title: str = Field(..., description="Card title")
+    value: int = Field(..., description="Main numeric value")
+    subtitle: str = Field(..., description="Additional context")
+    trend: str = Field(..., description="Trend direction: up, down, neutral")
+    change_percent: Optional[float] = Field(None, description="Percentage change")
+
+
+class DashboardSummaryResponse(BaseModel):
+    """
+    Complete dashboard summary response.
+    
+    Attributes:
+        cards: List of summary cards
+        last_updated: When the summary was generated
+        system_health: Overall system health indicator
+    """
+    cards: List[DashboardSummaryCard] = Field(..., description="Summary cards")
+    last_updated: datetime = Field(..., description="When summary was generated")
+    system_health: str = Field(..., description="Overall system health: healthy, warning, critical")
+
+
 class DeviceCreateRequest(BaseModel):
     """
     Request to create a new device.

@@ -88,6 +88,13 @@ except Exception as e:
     router_import_errors['access'] = str(e)
     routers_available['access'] = None
 
+try:
+    from backend.app.routers import dashboard
+    routers_available['dashboard'] = dashboard
+except Exception as e:
+    router_import_errors['dashboard'] = str(e)
+    routers_available['dashboard'] = None
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -170,6 +177,12 @@ def create_app() -> FastAPI:
         routers_included.append('access')
     else:
         routers_failed.append('access')
+    
+    if routers_available['dashboard']:
+        app.include_router(routers_available['dashboard'].router, prefix="/v1")
+        routers_included.append('dashboard')
+    else:
+        routers_failed.append('dashboard')
     
     @app.get("/")
     def root():
