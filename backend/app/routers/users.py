@@ -98,7 +98,7 @@ def get_devices_with_owner_info(db: Session, owner_cid: UUID) -> List[dict]:
             "os_version": device.os_version,
             "last_check_in": device.last_check_in,
             "status": device.status,
-            "tags": device.tags
+            "tags": sorted([{"id": tag.id, "tag": tag.tag} for tag in device.tags], key=lambda x: x["tag"].value) if device.tags else []
         }
         
         # Add owner information (we have the join)

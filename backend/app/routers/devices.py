@@ -265,7 +265,7 @@ def get_devices(
             "os_version": device.os_version,
             "last_check_in": device.last_check_in,
             "status": device.status,
-            "tags": device.tags
+            "tags": sorted([{"id": tag.id, "tag": tag.tag} for tag in device.tags], key=lambda x: x["tag"].value) if device.tags else []
         }
         
         # Add owner information (we always have the join now)
@@ -353,8 +353,8 @@ def get_devices_comprehensive_summary(
             func.count(Device.id).label('count')
         ).group_by(Device.os_version).order_by(func.count(Device.id).desc()).limit(10).all()
         
-        # Tag analysis
-        tag_stats = db.query(DeviceTag.tag, func.count(DeviceTag.device_id).label('count')).group_by(DeviceTag.tag).order_by(func.count(DeviceTag.device_id).desc()).all()
+        # Tag analysis - sorted by tag name for consistency
+        tag_stats = db.query(DeviceTag.tag, func.count(DeviceTag.device_id).label('count')).group_by(DeviceTag.tag).order_by(DeviceTag.tag).all()
         
         # Recent activity (devices that checked in recently) - use raw SQL to avoid schema issues
         recent_activity_sql = f"SELECT COUNT(*) FROM devices WHERE last_check_in >= '{cutoff_date.isoformat()}'"
@@ -493,7 +493,7 @@ def get_device_detail(
         "os_version": device.os_version,
         "last_check_in": device.last_check_in,
         "status": device.status,
-        "tags": device.tags
+        "tags": sorted([{"id": tag.id, "tag": tag.tag} for tag in device.tags], key=lambda x: x["tag"].value) if device.tags else []
     }
     
     # Add owner information (we have the join now)
@@ -1055,6 +1055,45 @@ def get_device_compliance_summary(
     }
 
 
+@router.get("/summary/by-os")
+def get_device_os_summary(
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get device count breakdown by operating system (backward compatibility).
+
+    **Frontend Integration Notes:**
+    - DEPRECATED: Use /summary/by-device-info instead
+    - This endpoint extracts just the OS portion from device info
+    - Maintained for backward compatibility
+    """
+    device_info_counts = (
+        db.query(Device.os_version, func.count(Device.id))
+        .filter(Device.os_version.isnot(None))
+        .group_by(Device.os_version)
+        .order_by(func.count(Device.id).desc())
+        .all()
+    )
+
+    # Extract just OS information for backward compatibility
+    os_summary = {}
+    for device_info, count in device_info_counts:
+        if device_info and " - " in device_info:
+            # Extract OS from "MacBook Pro 16\" - macOS 14.2 Sonoma"
+            _, os_version = device_info.split(" - ", 1)
+        else:
+            os_version = device_info or "Unknown OS"
+
+        # Aggregate counts for the same OS
+        if os_version in os_summary:
+            os_summary[os_version] += count
+        else:
+            os_summary[os_version] = count
+
+    return os_summary
+
+
 @router.get("/summary/by-tag")
 def get_device_tag_summary(
     db: Session = Depends(get_db),
@@ -1140,27 +1179,42 @@ def get_device_recent_activity_summary(
     }
 
 
-@router.get("/summary/by-os")
-def get_device_os_summary(
+@router.get("/summary/by-device-info")
+def get_device_info_summary(
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
     """
-    Get device count breakdown by operating system.
-    
+    Get device count breakdown by device model and OS information.
+
     **Frontend Integration Notes:**
-    - Use this for OS distribution analysis
-    - Shows which operating systems are most common
-    - Useful for patch management and security planning
+    - Use this for device model distribution analysis
+    - Shows device types and their operating systems
+    - Useful for hardware inventory and compatibility planning
+    - Replaces the old OS-only view with comprehensive device info
     """
-    os_counts = (
+    device_info_counts = (
         db.query(Device.os_version, func.count(Device.id))
         .filter(Device.os_version.isnot(None))
         .group_by(Device.os_version)
+        .order_by(func.count(Device.id).desc())
         .all()
     )
-    
-    return {os_version: count for os_version, count in os_counts}
+
+    # Parse device info to extract device model and OS separately
+    result = {}
+    for device_info, count in device_info_counts:
+        if device_info and " - " in device_info:
+            # Format: "MacBook Pro 16\" - macOS 14.2 Sonoma"
+            device_model, os_version = device_info.split(" - ", 1)
+            display_name = f"{device_model} ({os_version})"
+        else:
+            # Fallback for devices without proper formatting
+            display_name = device_info or "Unknown Device"
+
+        result[display_name] = count
+
+    return result
 
 
 @router.get("/summary/risk-analysis")
