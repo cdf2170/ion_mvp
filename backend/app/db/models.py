@@ -33,15 +33,6 @@ class AgentStatusEnum(enum.Enum):
     UNINSTALLED = "Uninstalled"
 
 
-class AgentStatusEnum(enum.Enum):
-    INSTALLED = "Installed"
-    RUNNING = "Running"
-    STOPPED = "Stopped"
-    ERROR = "Error"
-    UPDATING = "Updating"
-    UNINSTALLED = "Uninstalled"
-
-
 class DeviceTagEnum(enum.Enum):
     REMOTE = "Remote"
     ON_SITE = "On-Site"
