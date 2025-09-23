@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi import Query as FastAPIQuery
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, asc, desc, and_
+from sqlalchemy import func, or_, asc, desc, and_, String
 from typing import Optional, List
 from uuid import UUID
 from enum import Enum
@@ -197,7 +197,7 @@ def get_devices(
         search_term = f"%{query.strip()}%"
         search_conditions = [
             Device.name.ilike(search_term),
-            Device.ip_address.ilike(search_term),
+            func.cast(Device.ip_address, String).ilike(search_term),  # Cast INET to string for search
             Device.mac_address.ilike(search_term),
             Device.vlan.ilike(search_term),
             Device.os_version.ilike(search_term),
