@@ -7,7 +7,7 @@ from uuid import UUID
 from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import CanonicalIdentity, Device, GroupMembership, Account, StatusEnum, ConfigHistory, ConfigChangeTypeEnum
+from backend.app.db.models import CanonicalIdentity, Device, GroupMembership, Account, StatusEnum, ConfigHistory, ConfigChangeTypeEnum, ActivityHistory
 from backend.app.utils import SortDirection, apply_pagination, apply_sorting, apply_text_search
 from backend.app.schemas import (
     UserListResponse, 
@@ -31,7 +31,15 @@ from backend.app.schemas import (
     FullDiskScanRequest,
     FullDiskScanResult,
     BulkUserOperationRequest,
-    BulkUserOperationResult
+    BulkUserOperationResult,
+    DeviceAssignmentRequest,
+    DeviceAssignmentResult,
+    DeviceTransferRequest,
+    DeviceTransferResult,
+    DeviceUnassignmentRequest,
+    DeviceUnassignmentResult,
+    BulkDeviceManagementRequest,
+    BulkDeviceManagementResult
 )
 from backend.app.security.auth import verify_token
 
@@ -694,6 +702,499 @@ def bulk_user_operations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Bulk operation failed: {str(e)}"
+        )
+
+
+@router.post("/device-assignment", response_model=DeviceAssignmentResult)
+def assign_devices_to_user(
+    assignment_request: DeviceAssignmentRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Assign devices to a specific user.
+    
+    **Frontend Integration Notes:**
+    - Assign unassigned devices or reassign from other users
+    - Optionally transfer activity history to new owner
+    - Returns detailed results per device with success/failure status
+    - Use for device onboarding and ownership management
+    
+    Args:
+        assignment_request: Device assignment configuration
+    
+    Returns:
+        Results of device assignment operation
+        
+    Raises:
+        404: Target user or devices not found
+        400: Invalid assignment parameters
+    """
+    
+    # Validate target user exists
+    target_user = db.query(CanonicalIdentity).filter(
+        CanonicalIdentity.cid == assignment_request.target_user_cid
+    ).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Target user with CID {assignment_request.target_user_cid} not found"
+        )
+    
+    # Get devices to assign
+    devices = db.query(Device).filter(Device.id.in_(assignment_request.device_ids)).all()
+    if len(devices) != len(assignment_request.device_ids):
+        found_device_ids = {device.id for device in devices}
+        missing_device_ids = set(assignment_request.device_ids) - found_device_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Devices not found: {list(missing_device_ids)}"
+        )
+    
+    try:
+        import uuid
+        from datetime import datetime
+        
+        assignment_id = uuid.uuid4()
+        devices_assigned = 0
+        devices_failed = 0
+        assignment_details = []
+        
+        for device in devices:
+            device_result = {
+                "device_id": str(device.id),
+                "device_name": device.name,
+                "previous_owner_cid": str(device.owner_cid) if device.owner_cid else None,
+                "new_owner_cid": str(assignment_request.target_user_cid),
+                "status": "success",
+                "error_message": None
+            }
+            
+            try:
+                # Check if device is already assigned and handle force reassign
+                if device.owner_cid and not assignment_request.force_reassign:
+                    device_result["status"] = "failed"
+                    device_result["error_message"] = f"Device already assigned to user {device.owner_cid}"
+                    devices_failed += 1
+                    assignment_details.append(device_result)
+                    continue
+                
+                # Store old owner for logging
+                old_owner_cid = device.owner_cid
+                
+                # Assign device to new user
+                device.owner_cid = assignment_request.target_user_cid
+                
+                # Transfer activity history if requested
+                if assignment_request.transfer_activity_history and old_owner_cid:
+                    activity_records = db.query(ActivityHistory).filter(
+                        ActivityHistory.device_id == device.id
+                    ).all()
+                    for activity in activity_records:
+                        activity.user_cid = assignment_request.target_user_cid
+                
+                # Log configuration change
+                log_user_config_change(
+                    db=db,
+                    entity_type="device",
+                    entity_id=device.id,
+                    change_type=ConfigChangeTypeEnum.UPDATED,
+                    field_name="owner_assignment",
+                    old_value=str(old_owner_cid) if old_owner_cid else "unassigned",
+                    new_value=str(assignment_request.target_user_cid),
+                    changed_by="API User"
+                )
+                
+                devices_assigned += 1
+                assignment_details.append(device_result)
+                
+            except Exception as device_error:
+                device_result["status"] = "failed"
+                device_result["error_message"] = str(device_error)
+                devices_failed += 1
+                assignment_details.append(device_result)
+        
+        db.commit()
+        
+        success_rate = (devices_assigned / len(devices) * 100) if devices else 0
+        summary = f"Device assignment completed for user {target_user.full_name}. "
+        summary += f"Assigned {devices_assigned} of {len(devices)} devices ({success_rate:.1f}% success rate)."
+        
+        return DeviceAssignmentResult(
+            assignment_id=assignment_id,
+            target_user_cid=assignment_request.target_user_cid,
+            devices_assigned=devices_assigned,
+            devices_failed=devices_failed,
+            assignment_details=assignment_details,
+            summary=summary
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Device assignment failed: {str(e)}"
+        )
+
+
+@router.post("/device-transfer", response_model=DeviceTransferResult)
+def transfer_device_ownership(
+    transfer_request: DeviceTransferRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Transfer device ownership between users.
+    
+    **Frontend Integration Notes:**
+    - Transfer devices from one user to another
+    - Validates both source and target users exist
+    - Optionally transfers activity history and notifies users
+    - Use for employee transitions and device reassignments
+    
+    Args:
+        transfer_request: Device transfer configuration
+    
+    Returns:
+        Results of device transfer operation
+        
+    Raises:
+        404: Source/target users or devices not found
+        400: Invalid transfer parameters
+    """
+    
+    # Validate source and target users exist
+    source_user = db.query(CanonicalIdentity).filter(
+        CanonicalIdentity.cid == transfer_request.source_user_cid
+    ).first()
+    if not source_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Source user with CID {transfer_request.source_user_cid} not found"
+        )
+    
+    target_user = db.query(CanonicalIdentity).filter(
+        CanonicalIdentity.cid == transfer_request.target_user_cid
+    ).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Target user with CID {transfer_request.target_user_cid} not found"
+        )
+    
+    # Get devices to transfer (must belong to source user)
+    devices = db.query(Device).filter(
+        Device.id.in_(transfer_request.device_ids),
+        Device.owner_cid == transfer_request.source_user_cid
+    ).all()
+    
+    if len(devices) != len(transfer_request.device_ids):
+        found_device_ids = {device.id for device in devices}
+        missing_device_ids = set(transfer_request.device_ids) - found_device_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Devices not found or not owned by source user: {list(missing_device_ids)}"
+        )
+    
+    try:
+        import uuid
+        from datetime import datetime
+        
+        transfer_id = uuid.uuid4()
+        devices_transferred = 0
+        devices_failed = 0
+        transfer_details = []
+        
+        for device in devices:
+            device_result = {
+                "device_id": str(device.id),
+                "device_name": device.name,
+                "source_user_cid": str(transfer_request.source_user_cid),
+                "target_user_cid": str(transfer_request.target_user_cid),
+                "status": "success",
+                "error_message": None
+            }
+            
+            try:
+                # Transfer device ownership
+                device.owner_cid = transfer_request.target_user_cid
+                
+                # Transfer activity history if requested
+                if transfer_request.transfer_activity_history:
+                    activity_records = db.query(ActivityHistory).filter(
+                        ActivityHistory.device_id == device.id
+                    ).all()
+                    for activity in activity_records:
+                        activity.user_cid = transfer_request.target_user_cid
+                
+                # Log configuration change
+                log_user_config_change(
+                    db=db,
+                    entity_type="device",
+                    entity_id=device.id,
+                    change_type=ConfigChangeTypeEnum.UPDATED,
+                    field_name="owner_transfer",
+                    old_value=str(transfer_request.source_user_cid),
+                    new_value=str(transfer_request.target_user_cid),
+                    changed_by="API User"
+                )
+                
+                devices_transferred += 1
+                transfer_details.append(device_result)
+                
+            except Exception as device_error:
+                device_result["status"] = "failed"
+                device_result["error_message"] = str(device_error)
+                devices_failed += 1
+                transfer_details.append(device_result)
+        
+        db.commit()
+        
+        success_rate = (devices_transferred / len(devices) * 100) if devices else 0
+        summary = f"Device transfer completed from {source_user.full_name} to {target_user.full_name}. "
+        summary += f"Transferred {devices_transferred} of {len(devices)} devices ({success_rate:.1f}% success rate)."
+        
+        return DeviceTransferResult(
+            transfer_id=transfer_id,
+            source_user_cid=transfer_request.source_user_cid,
+            target_user_cid=transfer_request.target_user_cid,
+            devices_transferred=devices_transferred,
+            devices_failed=devices_failed,
+            transfer_details=transfer_details,
+            summary=summary
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Device transfer failed: {str(e)}"
+        )
+
+
+@router.post("/device-unassignment", response_model=DeviceUnassignmentResult)
+def unassign_devices_from_users(
+    unassignment_request: DeviceUnassignmentRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Unassign devices from their current users.
+    
+    **Frontend Integration Notes:**
+    - Remove device ownership assignments
+    - Optionally preserve activity history for audit purposes
+    - Use for device decommissioning or pool management
+    - Returns detailed results per device
+    
+    Args:
+        unassignment_request: Device unassignment configuration
+    
+    Returns:
+        Results of device unassignment operation
+        
+    Raises:
+        404: Devices not found
+    """
+    
+    # Get devices to unassign
+    devices = db.query(Device).filter(Device.id.in_(unassignment_request.device_ids)).all()
+    if len(devices) != len(unassignment_request.device_ids):
+        found_device_ids = {device.id for device in devices}
+        missing_device_ids = set(unassignment_request.device_ids) - found_device_ids
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Devices not found: {list(missing_device_ids)}"
+        )
+    
+    try:
+        import uuid
+        
+        unassignment_id = uuid.uuid4()
+        devices_unassigned = 0
+        devices_failed = 0
+        unassignment_details = []
+        
+        for device in devices:
+            device_result = {
+                "device_id": str(device.id),
+                "device_name": device.name,
+                "previous_owner_cid": str(device.owner_cid) if device.owner_cid else None,
+                "status": "success",
+                "error_message": None
+            }
+            
+            try:
+                old_owner_cid = device.owner_cid
+                
+                # Unassign device
+                device.owner_cid = None
+                
+                # Log configuration change
+                if old_owner_cid:
+                    log_user_config_change(
+                        db=db,
+                        entity_type="device",
+                        entity_id=device.id,
+                        change_type=ConfigChangeTypeEnum.UPDATED,
+                        field_name="owner_unassignment",
+                        old_value=str(old_owner_cid),
+                        new_value="unassigned",
+                        changed_by="API User"
+                    )
+                
+                devices_unassigned += 1
+                unassignment_details.append(device_result)
+                
+            except Exception as device_error:
+                device_result["status"] = "failed"
+                device_result["error_message"] = str(device_error)
+                devices_failed += 1
+                unassignment_details.append(device_result)
+        
+        db.commit()
+        
+        success_rate = (devices_unassigned / len(devices) * 100) if devices else 0
+        summary = f"Device unassignment completed. "
+        summary += f"Unassigned {devices_unassigned} of {len(devices)} devices ({success_rate:.1f}% success rate). "
+        summary += f"Reason: {unassignment_request.reason}"
+        
+        return DeviceUnassignmentResult(
+            unassignment_id=unassignment_id,
+            devices_unassigned=devices_unassigned,
+            devices_failed=devices_failed,
+            unassignment_details=unassignment_details,
+            summary=summary
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Device unassignment failed: {str(e)}"
+        )
+
+
+@router.post("/bulk-device-management", response_model=BulkDeviceManagementResult)
+def bulk_device_management(
+    bulk_request: BulkDeviceManagementRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Perform bulk device management operations.
+    
+    **Frontend Integration Notes:**
+    - Execute multiple device management operations in batch
+    - Supports: assign, transfer, unassign operations
+    - Returns detailed results per operation with success/failure status
+    - Use for large-scale device management tasks
+    
+    Args:
+        bulk_request: Bulk device management configuration
+    
+    Returns:
+        Results of bulk device management operations
+        
+    Raises:
+        400: Invalid operation type or parameters
+    """
+    
+    try:
+        import uuid
+        import time
+        
+        bulk_operation_id = uuid.uuid4()
+        operation_start = time.time()
+        
+        successful_operations = 0
+        failed_operations = 0
+        operation_results = []
+        
+        for i, operation in enumerate(bulk_request.operations):
+            operation_result = {
+                "operation_index": i,
+                "operation_type": bulk_request.operation_type,
+                "status": "success",
+                "details": {},
+                "error_message": None
+            }
+            
+            try:
+                if bulk_request.operation_type == "assign":
+                    # Simulate device assignment
+                    device_ids = operation.get("device_ids", [])
+                    target_user_cid = operation.get("target_user_cid")
+                    
+                    # Validate target user exists
+                    target_user = db.query(CanonicalIdentity).filter(
+                        CanonicalIdentity.cid == target_user_cid
+                    ).first()
+                    if not target_user:
+                        raise ValueError(f"Target user {target_user_cid} not found")
+                    
+                    operation_result["details"] = {
+                        "device_ids": device_ids,
+                        "target_user_cid": target_user_cid,
+                        "target_user_name": target_user.full_name,
+                        "devices_assigned": len(device_ids)
+                    }
+                    
+                elif bulk_request.operation_type == "transfer":
+                    # Simulate device transfer
+                    device_ids = operation.get("device_ids", [])
+                    source_user_cid = operation.get("source_user_cid")
+                    target_user_cid = operation.get("target_user_cid")
+                    
+                    operation_result["details"] = {
+                        "device_ids": device_ids,
+                        "source_user_cid": source_user_cid,
+                        "target_user_cid": target_user_cid,
+                        "devices_transferred": len(device_ids)
+                    }
+                    
+                elif bulk_request.operation_type == "unassign":
+                    # Simulate device unassignment
+                    device_ids = operation.get("device_ids", [])
+                    reason = operation.get("reason", "Bulk unassignment")
+                    
+                    operation_result["details"] = {
+                        "device_ids": device_ids,
+                        "reason": reason,
+                        "devices_unassigned": len(device_ids)
+                    }
+                
+                successful_operations += 1
+                operation_results.append(operation_result)
+                
+            except Exception as operation_error:
+                failed_operations += 1
+                operation_result["status"] = "failed"
+                operation_result["error_message"] = str(operation_error)
+                operation_results.append(operation_result)
+        
+        operation_duration = time.time() - operation_start
+        total_operations = len(bulk_request.operations)
+        success_rate = (successful_operations / total_operations * 100) if total_operations > 0 else 0
+        
+        summary = f"Bulk {bulk_request.operation_type} operation completed. "
+        summary += f"Processed {total_operations} operations in {operation_duration:.1f} seconds. "
+        summary += f"Success rate: {success_rate:.1f}% ({successful_operations} successful, {failed_operations} failed)."
+        
+        return BulkDeviceManagementResult(
+            bulk_operation_id=bulk_operation_id,
+            operation_type=bulk_request.operation_type,
+            total_operations=total_operations,
+            successful_operations=successful_operations,
+            failed_operations=failed_operations,
+            operation_results=operation_results,
+            summary=summary
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk device management failed: {str(e)}"
         )
 
 

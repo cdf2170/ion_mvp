@@ -928,6 +928,157 @@ class BulkUserOperationResult(BaseModel):
     summary: str = Field(..., description="Human-readable summary")
 
 
+class DeviceAssignmentRequest(BaseModel):
+    """
+    Request to assign devices to a user.
+    
+    Attributes:
+        device_ids: List of device IDs to assign
+        target_user_cid: User CID to assign devices to
+        force_reassign: Whether to force reassignment if devices are already assigned
+        transfer_activity_history: Whether to transfer activity history to new owner
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to assign")
+    target_user_cid: UUID = Field(..., description="User CID to assign devices to")
+    force_reassign: bool = Field(False, description="Force reassignment if devices already assigned")
+    transfer_activity_history: bool = Field(True, description="Transfer activity history to new owner")
+
+
+class DeviceAssignmentResult(BaseModel):
+    """
+    Result of device assignment operation.
+    
+    Attributes:
+        assignment_id: Unique identifier for this assignment operation
+        target_user_cid: User CID devices were assigned to
+        devices_assigned: Number of devices successfully assigned
+        devices_failed: Number of devices that failed to assign
+        assignment_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    assignment_id: UUID = Field(..., description="Unique identifier for assignment operation")
+    target_user_cid: UUID = Field(..., description="User CID devices were assigned to")
+    devices_assigned: int = Field(..., description="Number of devices successfully assigned")
+    devices_failed: int = Field(..., description="Number of devices that failed to assign")
+    assignment_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class DeviceTransferRequest(BaseModel):
+    """
+    Request to transfer device ownership between users.
+    
+    Attributes:
+        device_ids: List of device IDs to transfer
+        source_user_cid: Current owner's CID
+        target_user_cid: New owner's CID
+        transfer_activity_history: Whether to transfer activity history
+        notify_users: Whether to notify both users of transfer
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to transfer")
+    source_user_cid: UUID = Field(..., description="Current owner's CID")
+    target_user_cid: UUID = Field(..., description="New owner's CID")
+    transfer_activity_history: bool = Field(True, description="Transfer activity history")
+    notify_users: bool = Field(True, description="Notify both users of transfer")
+
+
+class DeviceTransferResult(BaseModel):
+    """
+    Result of device transfer operation.
+    
+    Attributes:
+        transfer_id: Unique identifier for this transfer operation
+        source_user_cid: Original owner's CID
+        target_user_cid: New owner's CID
+        devices_transferred: Number of devices successfully transferred
+        devices_failed: Number of devices that failed to transfer
+        transfer_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    transfer_id: UUID = Field(..., description="Unique identifier for transfer operation")
+    source_user_cid: UUID = Field(..., description="Original owner's CID")
+    target_user_cid: UUID = Field(..., description="New owner's CID")
+    devices_transferred: int = Field(..., description="Number of devices successfully transferred")
+    devices_failed: int = Field(..., description="Number of devices that failed to transfer")
+    transfer_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class DeviceUnassignmentRequest(BaseModel):
+    """
+    Request to unassign devices from users.
+    
+    Attributes:
+        device_ids: List of device IDs to unassign
+        preserve_activity_history: Whether to preserve activity history
+        reason: Reason for unassignment
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to unassign")
+    preserve_activity_history: bool = Field(True, description="Preserve activity history")
+    reason: str = Field("Administrative action", description="Reason for unassignment")
+
+
+class DeviceUnassignmentResult(BaseModel):
+    """
+    Result of device unassignment operation.
+    
+    Attributes:
+        unassignment_id: Unique identifier for this unassignment operation
+        devices_unassigned: Number of devices successfully unassigned
+        devices_failed: Number of devices that failed to unassign
+        unassignment_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    unassignment_id: UUID = Field(..., description="Unique identifier for unassignment operation")
+    devices_unassigned: int = Field(..., description="Number of devices successfully unassigned")
+    devices_failed: int = Field(..., description="Number of devices that failed to unassign")
+    unassignment_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class BulkDeviceManagementRequest(BaseModel):
+    """
+    Request for bulk device management operations.
+    
+    Attributes:
+        operation_type: Type of operation (assign, transfer, unassign)
+        operations: List of individual operations to perform
+    """
+    operation_type: str = Field(..., description="Operation type")
+    operations: List[dict] = Field(..., min_items=1, description="List of operations to perform")
+    
+    @field_validator('operation_type')
+    @classmethod
+    def validate_operation_type(cls, v: str) -> str:
+        """Validate operation type."""
+        allowed_ops = ['assign', 'transfer', 'unassign']
+        if v.lower() not in allowed_ops:
+            raise ValueError(f'operation_type must be one of: {", ".join(allowed_ops)}')
+        return v.lower()
+
+
+class BulkDeviceManagementResult(BaseModel):
+    """
+    Result of bulk device management operations.
+    
+    Attributes:
+        bulk_operation_id: Unique identifier for this bulk operation
+        operation_type: Type of operations performed
+        total_operations: Total number of operations requested
+        successful_operations: Number of successful operations
+        failed_operations: Number of failed operations
+        operation_results: Detailed results per operation
+        summary: Human-readable summary
+    """
+    bulk_operation_id: UUID = Field(..., description="Unique identifier for bulk operation")
+    operation_type: str = Field(..., description="Type of operations performed")
+    total_operations: int = Field(..., description="Total number of operations requested")
+    successful_operations: int = Field(..., description="Number of successful operations")
+    failed_operations: int = Field(..., description="Number of failed operations")
+    operation_results: List[dict] = Field(..., description="Detailed results per operation")
+    summary: str = Field(..., description="Human-readable summary")
+
+
 # Sync Operation Schema
 class SyncRequest(BaseModel):
     """
