@@ -828,6 +828,106 @@ class ForceCheckinResult(BaseModel):
     message: str = Field(..., description="Human-readable result message")
 
 
+class FullDiskScanRequest(BaseModel):
+    """
+    Request for full disk scan operation.
+    
+    Attributes:
+        scan_depth: Depth of scan (quick, standard, deep)
+        include_user_data: Whether to scan user data directories
+        check_permissions: Whether to check file permissions
+        analyze_disk_usage: Whether to analyze disk space usage
+        compliance_check: Whether to run compliance checks
+    """
+    scan_depth: str = Field("standard", description="Scan depth: quick, standard, deep")
+    include_user_data: bool = Field(True, description="Scan user data directories")
+    check_permissions: bool = Field(True, description="Check file permissions")
+    analyze_disk_usage: bool = Field(True, description="Analyze disk space usage")
+    compliance_check: bool = Field(True, description="Run compliance checks")
+    
+    @field_validator('scan_depth')
+    @classmethod
+    def validate_scan_depth(cls, v: str) -> str:
+        """Validate scan depth values."""
+        allowed_depths = ['quick', 'standard', 'deep']
+        if v.lower() not in allowed_depths:
+            raise ValueError(f'scan_depth must be one of: {", ".join(allowed_depths)}')
+        return v.lower()
+
+
+class FullDiskScanResult(BaseModel):
+    """
+    Result of full disk scan operation.
+    
+    Attributes:
+        scan_id: Unique identifier for this scan
+        user_cid: User's canonical identity
+        devices_scanned: Number of devices scanned
+        scan_duration_seconds: Time taken for scan
+        files_scanned: Total files scanned
+        issues_found: Number of compliance issues found
+        disk_usage_gb: Total disk usage in GB
+        security_alerts: Number of security alerts
+        scan_summary: Human-readable summary
+        detailed_results: Detailed scan results per device
+    """
+    scan_id: UUID = Field(..., description="Unique identifier for this scan")
+    user_cid: UUID = Field(..., description="User's canonical identity")
+    devices_scanned: int = Field(..., description="Number of devices scanned")
+    scan_duration_seconds: float = Field(..., description="Time taken for scan")
+    files_scanned: int = Field(..., description="Total files scanned")
+    issues_found: int = Field(..., description="Number of compliance issues found")
+    disk_usage_gb: float = Field(..., description="Total disk usage in GB")
+    security_alerts: int = Field(..., description="Number of security alerts")
+    scan_summary: str = Field(..., description="Human-readable summary")
+    detailed_results: List[dict] = Field(..., description="Detailed scan results per device")
+
+
+class BulkUserOperationRequest(BaseModel):
+    """
+    Request for bulk user operations.
+    
+    Attributes:
+        user_cids: List of user CIDs to operate on
+        operation_type: Type of operation (scan, reset_password, force_checkin)
+        operation_params: Parameters specific to the operation
+    """
+    user_cids: List[UUID] = Field(..., min_items=1, description="List of user CIDs")
+    operation_type: str = Field(..., description="Operation type")
+    operation_params: dict = Field(default={}, description="Operation-specific parameters")
+    
+    @field_validator('operation_type')
+    @classmethod
+    def validate_operation_type(cls, v: str) -> str:
+        """Validate operation type."""
+        allowed_ops = ['scan', 'reset_password', 'force_checkin', 'full_disk_scan']
+        if v.lower() not in allowed_ops:
+            raise ValueError(f'operation_type must be one of: {", ".join(allowed_ops)}')
+        return v.lower()
+
+
+class BulkUserOperationResult(BaseModel):
+    """
+    Result of bulk user operations.
+    
+    Attributes:
+        operation_id: Unique identifier for this operation
+        operation_type: Type of operation performed
+        total_users: Total users in the operation
+        successful_operations: Number of successful operations
+        failed_operations: Number of failed operations
+        results: Detailed results per user
+        summary: Human-readable summary
+    """
+    operation_id: UUID = Field(..., description="Unique identifier for this operation")
+    operation_type: str = Field(..., description="Type of operation performed")
+    total_users: int = Field(..., description="Total users in the operation")
+    successful_operations: int = Field(..., description="Number of successful operations")
+    failed_operations: int = Field(..., description="Number of failed operations")
+    results: List[dict] = Field(..., description="Detailed results per user")
+    summary: str = Field(..., description="Human-readable summary")
+
+
 # Sync Operation Schema
 class SyncRequest(BaseModel):
     """

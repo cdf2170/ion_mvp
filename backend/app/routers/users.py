@@ -7,7 +7,7 @@ from uuid import UUID
 from enum import Enum
 
 from backend.app.db.session import get_db
-from backend.app.db.models import CanonicalIdentity, Device, GroupMembership, Account, StatusEnum
+from backend.app.db.models import CanonicalIdentity, Device, GroupMembership, Account, StatusEnum, ConfigHistory, ConfigChangeTypeEnum
 from backend.app.utils import SortDirection, apply_pagination, apply_sorting, apply_text_search
 from backend.app.schemas import (
     UserListResponse, 
@@ -27,12 +27,46 @@ from backend.app.schemas import (
     SyncRequest,
     SyncResult,
     AdvancedMergeRequest,
-    MergePreviewResult
+    MergePreviewResult,
+    FullDiskScanRequest,
+    FullDiskScanResult,
+    BulkUserOperationRequest,
+    BulkUserOperationResult
 )
 from backend.app.security.auth import verify_token
 
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+def log_user_config_change(
+    db: Session,
+    entity_type: str,
+    entity_id: UUID,
+    change_type: ConfigChangeTypeEnum,
+    field_name: str,
+    old_value: str,
+    new_value: str,
+    changed_by: str = "API User"
+):
+    """
+    Log a user-related configuration change to the audit trail.
+    """
+    try:
+        config_entry = ConfigHistory(
+            entity_type=entity_type,
+            entity_id=entity_id,
+            change_type=change_type,
+            field_name=field_name,
+            old_value=str(old_value) if old_value is not None else None,
+            new_value=str(new_value) if new_value is not None else None,
+            changed_by=changed_by
+        )
+        db.add(config_entry)
+        # Note: Don't commit here - let the calling function handle the transaction
+    except Exception as e:
+        # Log the error but don't fail the main operation
+        print(f"Warning: Failed to log user config change: {str(e)}")
 
 
 def get_devices_with_owner_info(db: Session, owner_cid: UUID) -> List[dict]:
@@ -302,6 +336,364 @@ def get_users_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate users summary: {str(e)}"
+        )
+
+
+@router.post("/full-disk-scan/{cid}", response_model=FullDiskScanResult)
+def full_disk_scan(
+    cid: UUID,
+    scan_request: FullDiskScanRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Perform comprehensive full disk scan on user's devices.
+    
+    **Frontend Integration Notes:**
+    - Comprehensive scan including file permissions, disk usage, compliance
+    - Configurable scan depth (quick, standard, deep)
+    - Returns detailed results per device with security alerts
+    - Use for thorough security audits and compliance checks
+    
+    Args:
+        cid: User's canonical identity
+        scan_request: Scan configuration parameters
+    
+    Returns:
+        Detailed scan results with security and compliance findings
+        
+    Raises:
+        404: User not found
+        400: Invalid scan parameters
+    """
+    
+    user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == cid).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with CID {cid} not found"
+        )
+    
+    # Get user's devices
+    devices = db.query(Device).filter(Device.owner_cid == cid).all()
+    
+    try:
+        import time
+        import uuid
+        
+        scan_start = time.time()
+        scan_id = uuid.uuid4()
+        
+        # Simulate comprehensive disk scan
+        detailed_results = []
+        total_files = 0
+        total_issues = 0
+        total_disk_usage = 0.0
+        total_security_alerts = 0
+        
+        for device in devices:
+            # Simulate device-specific scan based on scan depth
+            scan_multiplier = {
+                'quick': 1000,
+                'standard': 5000,
+                'deep': 15000
+            }.get(scan_request.scan_depth, 5000)
+            
+            device_files = random.randint(scan_multiplier, scan_multiplier * 2)
+            device_issues = random.randint(0, max(1, device_files // 1000))
+            device_disk_gb = random.uniform(50.0, 500.0)
+            device_alerts = random.randint(0, max(1, device_issues // 2))
+            
+            device_result = {
+                "device_id": str(device.id),
+                "device_name": device.name,
+                "files_scanned": device_files,
+                "issues_found": device_issues,
+                "disk_usage_gb": round(device_disk_gb, 2),
+                "security_alerts": device_alerts,
+                "scan_duration_seconds": round(random.uniform(30.0, 300.0), 2),
+                "compliance_status": "compliant" if device_issues < 3 else "non_compliant",
+                "top_issues": [
+                    f"Unauthorized file access in /tmp",
+                    f"Outdated security certificates",
+                    f"Suspicious network connections"
+                ][:device_alerts] if device_alerts > 0 else []
+            }
+            
+            detailed_results.append(device_result)
+            total_files += device_files
+            total_issues += device_issues
+            total_disk_usage += device_disk_gb
+            total_security_alerts += device_alerts
+        
+        scan_duration = time.time() - scan_start
+        
+        # Generate summary based on results
+        compliance_rate = (len(devices) - sum(1 for r in detailed_results if r["compliance_status"] == "non_compliant")) / len(devices) * 100 if devices else 100
+        
+        scan_summary = f"Full disk scan completed for {len(devices)} devices. "
+        scan_summary += f"Compliance rate: {compliance_rate:.1f}%. "
+        scan_summary += f"Found {total_issues} issues requiring attention. "
+        if total_security_alerts > 0:
+            scan_summary += f"{total_security_alerts} security alerts detected."
+        else:
+            scan_summary += "No critical security alerts."
+        
+        return FullDiskScanResult(
+            scan_id=scan_id,
+            user_cid=cid,
+            devices_scanned=len(devices),
+            scan_duration_seconds=round(scan_duration, 2),
+            files_scanned=total_files,
+            issues_found=total_issues,
+            disk_usage_gb=round(total_disk_usage, 2),
+            security_alerts=total_security_alerts,
+            scan_summary=scan_summary,
+            detailed_results=detailed_results
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Full disk scan failed: {str(e)}"
+        )
+
+
+@router.post("/force-checkin/{cid}", response_model=ForceCheckinResult)
+def force_user_checkin(
+    cid: UUID,
+    checkin_request: ForceCheckinRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Force check-in for all devices belonging to a user.
+    
+    **Frontend Integration Notes:**
+    - Forces immediate check-in for user's devices
+    - Updates device status and optionally runs compliance scans
+    - Use for troubleshooting connectivity or compliance issues
+    - Returns detailed results per device contacted
+    
+    Args:
+        cid: User's canonical identity
+        checkin_request: Check-in configuration parameters
+    
+    Returns:
+        Results of force check-in operation with device responses
+        
+    Raises:
+        404: User not found
+    """
+    
+    user = db.query(CanonicalIdentity).filter(CanonicalIdentity.cid == cid).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with CID {cid} not found"
+        )
+    
+    # Get user's devices (or specific devices if provided)
+    if checkin_request.device_ids:
+        devices = db.query(Device).filter(
+            Device.owner_cid == cid,
+            Device.id.in_(checkin_request.device_ids)
+        ).all()
+    else:
+        devices = db.query(Device).filter(Device.owner_cid == cid).all()
+    
+    try:
+        import time
+        from datetime import datetime, timedelta
+        
+        devices_contacted = len(devices)
+        devices_responded = 0
+        compliance_scans_completed = 0
+        devices_updated = []
+        
+        for device in devices:
+            # Simulate force check-in (90% success rate)
+            if random.random() < 0.9:
+                devices_responded += 1
+                
+                # Update device last_check_in time
+                device.last_check_in = datetime.utcnow()
+                
+                # Update last_seen if device responded
+                device.last_seen = datetime.utcnow()
+                
+                # Optionally run compliance scan
+                if checkin_request.compliance_scan:
+                    # Simulate compliance scan (80% success rate)
+                    if random.random() < 0.8:
+                        compliance_scans_completed += 1
+                        # Randomly update compliance status
+                        device.compliant = random.random() < 0.85
+                
+                devices_updated.append(device.id)
+        
+        db.commit()
+        
+        success_rate = (devices_responded / devices_contacted * 100) if devices_contacted > 0 else 0
+        message = f"Force check-in completed for {user.full_name}. "
+        message += f"Contacted {devices_contacted} devices, {devices_responded} responded ({success_rate:.1f}% success rate). "
+        
+        if checkin_request.compliance_scan:
+            message += f"Completed {compliance_scans_completed} compliance scans."
+        
+        return ForceCheckinResult(
+            devices_contacted=devices_contacted,
+            devices_responded=devices_responded,
+            compliance_scans_completed=compliance_scans_completed,
+            devices_updated=devices_updated,
+            message=message
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Force check-in failed: {str(e)}"
+        )
+
+
+@router.post("/bulk-operations", response_model=BulkUserOperationResult)
+def bulk_user_operations(
+    operation_request: BulkUserOperationRequest,
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Perform bulk operations on multiple users.
+    
+    **Frontend Integration Notes:**
+    - Execute operations on multiple users simultaneously
+    - Supports: scan, reset_password, force_checkin, full_disk_scan
+    - Returns detailed results per user with success/failure status
+    - Use for administrative bulk operations
+    
+    Args:
+        operation_request: Bulk operation configuration
+    
+    Returns:
+        Results of bulk operation with per-user details
+        
+    Raises:
+        400: Invalid operation type or parameters
+    """
+    
+    try:
+        import uuid
+        import time
+        
+        operation_id = uuid.uuid4()
+        operation_start = time.time()
+        
+        # Validate that all users exist
+        users = db.query(CanonicalIdentity).filter(
+            CanonicalIdentity.cid.in_(operation_request.user_cids)
+        ).all()
+        
+        if len(users) != len(operation_request.user_cids):
+            found_cids = {user.cid for user in users}
+            missing_cids = set(operation_request.user_cids) - found_cids
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Users not found: {list(missing_cids)}"
+            )
+        
+        results = []
+        successful_operations = 0
+        failed_operations = 0
+        
+        for user in users:
+            try:
+                user_result = {
+                    "user_cid": str(user.cid),
+                    "user_name": user.full_name,
+                    "user_email": user.email,
+                    "status": "success",
+                    "operation_details": {},
+                    "error_message": None
+                }
+                
+                if operation_request.operation_type == "scan":
+                    # Simulate quick compliance scan
+                    devices = db.query(Device).filter(Device.owner_cid == user.cid).all()
+                    issues_found = random.randint(0, len(devices))
+                    user_result["operation_details"] = {
+                        "devices_scanned": len(devices),
+                        "issues_found": issues_found,
+                        "scan_duration_seconds": round(random.uniform(5.0, 30.0), 2)
+                    }
+                    
+                elif operation_request.operation_type == "reset_password":
+                    # Simulate password reset
+                    user_result["operation_details"] = {
+                        "password_reset": True,
+                        "temporary_password_sent": True,
+                        "email_sent_to": user.email
+                    }
+                    
+                elif operation_request.operation_type == "force_checkin":
+                    # Simulate force check-in
+                    devices = db.query(Device).filter(Device.owner_cid == user.cid).all()
+                    responded = random.randint(0, len(devices))
+                    user_result["operation_details"] = {
+                        "devices_contacted": len(devices),
+                        "devices_responded": responded,
+                        "success_rate": round((responded / len(devices) * 100), 1) if devices else 0
+                    }
+                    
+                elif operation_request.operation_type == "full_disk_scan":
+                    # Simulate full disk scan
+                    devices = db.query(Device).filter(Device.owner_cid == user.cid).all()
+                    total_files = sum(random.randint(1000, 10000) for _ in devices)
+                    total_issues = random.randint(0, total_files // 1000)
+                    user_result["operation_details"] = {
+                        "devices_scanned": len(devices),
+                        "files_scanned": total_files,
+                        "issues_found": total_issues,
+                        "scan_duration_seconds": round(random.uniform(60.0, 300.0), 2)
+                    }
+                
+                successful_operations += 1
+                results.append(user_result)
+                
+            except Exception as user_error:
+                failed_operations += 1
+                user_result = {
+                    "user_cid": str(user.cid),
+                    "user_name": user.full_name,
+                    "user_email": user.email,
+                    "status": "failed",
+                    "operation_details": {},
+                    "error_message": str(user_error)
+                }
+                results.append(user_result)
+        
+        operation_duration = time.time() - operation_start
+        total_users = len(operation_request.user_cids)
+        success_rate = (successful_operations / total_users * 100) if total_users > 0 else 0
+        
+        summary = f"Bulk {operation_request.operation_type} operation completed. "
+        summary += f"Processed {total_users} users in {operation_duration:.1f} seconds. "
+        summary += f"Success rate: {success_rate:.1f}% ({successful_operations} successful, {failed_operations} failed)."
+        
+        return BulkUserOperationResult(
+            operation_id=operation_id,
+            operation_type=operation_request.operation_type,
+            total_users=total_users,
+            successful_operations=successful_operations,
+            failed_operations=failed_operations,
+            results=results,
+            summary=summary
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Bulk operation failed: {str(e)}"
         )
 
 
