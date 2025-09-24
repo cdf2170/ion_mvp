@@ -31,11 +31,18 @@ def simple_seed():
         db.query(CanonicalIdentity).delete()
         db.commit()
         
-        # Create 10 simple users
+        # Create 10 simple users with consistent name/email correlation
         for i in range(10):
+            # Generate consistent name and email
+            full_name = fake.name()
+            name_parts = full_name.split()
+            first_name = name_parts[0].lower()
+            last_name = name_parts[-1].lower() if len(name_parts) > 1 else "user"
+            email = f"{first_name}.{last_name}@techcorp.com"
+
             user = CanonicalIdentity(
-                email=f"user{i+1}@techcorp.com",
-                full_name=fake.name(),
+                email=email,
+                full_name=full_name,
                 department=fake.random_element(["Engineering", "Sales", "Marketing", "IT"]),
                 role=fake.job(),
                 manager=fake.name() if i > 2 else None,

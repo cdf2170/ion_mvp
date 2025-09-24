@@ -90,17 +90,26 @@ def seed_database():
     # Fill out the remaining spots with realistic but generated data
     remaining_spots = 50 - len(demo_employees)
     for i in range(remaining_spots):
+        # Generate consistent name and email - CRITICAL FIX for search functionality
+        full_name = fake.name()
+        name_parts = full_name.split()
+        first_name = name_parts[0].lower()
+        last_name = name_parts[-1].lower() if len(name_parts) > 1 else "user"
+
+        # Create email that matches the generated name
+        email_prefix = f"{first_name}.{last_name}"
+
         fake_employee = {
-            "name": fake.name(),
-            "email": fake.first_name().lower() + "." + fake.last_name().lower(),
+            "name": full_name,
+            "email": email_prefix,  # This will match the name when @techcorp.com is added
             "department": fake.random_element(["Engineering", "Sales", "Marketing", "Finance", "IT", "Design", "Customer Support", "Operations"]),
             "role": fake.random_element([
-                "Software Engineer", "Senior Engineer", "Marketing Specialist", "Sales Representative", 
+                "Software Engineer", "Senior Engineer", "Marketing Specialist", "Sales Representative",
                 "Financial Analyst", "IT Specialist", "Designer", "Support Specialist", "Operations Coordinator"
             ]),
             "manager": fake.name(),
             "location": fake.random_element([
-                "San Francisco, CA", "New York, NY", "Austin, TX", "Los Angeles, CA", 
+                "San Francisco, CA", "New York, NY", "Austin, TX", "Los Angeles, CA",
                 "Chicago, IL", "Seattle, WA", "Denver, CO", "Remote"
             ])
         }
