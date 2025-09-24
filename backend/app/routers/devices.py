@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
 from fastapi import Query as FastAPIQuery
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, asc, desc, and_, String
@@ -442,7 +443,7 @@ def get_devices_comprehensive_summary(
         
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate devices summary: {str(e)}"
         )
 
@@ -450,23 +451,35 @@ def get_devices_comprehensive_summary(
 @router.get("/{device_id}", response_model=DeviceSchema)
 def get_device_detail(
     device_id: UUID,
+    # Optional search context parameters for frontend navigation
+    search_query: Optional[str] = FastAPIQuery(None, description="Original search query for navigation context"),
+    page: Optional[int] = FastAPIQuery(None, description="Original page number for navigation context"),
+    compliant: Optional[bool] = FastAPIQuery(None, description="Original compliance filter for navigation context"),
+    device_status: Optional[str] = FastAPIQuery(None, description="Original status filter for navigation context"),
+    tags: Optional[str] = FastAPIQuery(None, description="Original tags filter for navigation context"),
     db: Session = Depends(get_db),
     _: str = Depends(verify_token)
 ):
     """
-    Get detailed device information.
-    
+    Get detailed device information with optional search context for navigation.
+
     **Frontend Integration Notes:**
     - Use this for device detail views
     - Returns complete device information
+    - Pass original search parameters to maintain search context for "Back to Search" functionality
     - Useful for device management workflows
-    
+
     Args:
         device_id: Device's unique identifier
-    
+        search_query: Original search query (for navigation context)
+        page: Original page number (for navigation context)
+        compliant: Original compliance filter (for navigation context)
+        device_status: Original status filter (for navigation context)
+        tags: Original tags filter (for navigation context)
+
     Returns:
-        Complete device information
-        
+        Complete device information with optional search context
+
     Raises:
         404: Device not found
     """
@@ -476,7 +489,7 @@ def get_device_detail(
     
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Device with ID {device_id} not found"
         )
     
@@ -515,7 +528,23 @@ def get_device_detail(
     else:
         device_dict["groups"] = []
         device_dict["policies"] = []
-    
+
+    # Add search context for frontend navigation (if provided)
+    search_context = {}
+    if search_query is not None:
+        search_context["search_query"] = search_query
+    if page is not None:
+        search_context["page"] = page
+    if compliant is not None:
+        search_context["compliant"] = compliant
+    if device_status is not None:
+        search_context["status"] = device_status
+    if tags is not None:
+        search_context["tags"] = tags
+
+    if search_context:
+        device_dict["search_context"] = search_context
+
     return DeviceSchema.model_validate(device_dict)
 
 
@@ -551,7 +580,7 @@ def update_device(
     
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Device with ID {device_id} not found"
         )
     
@@ -562,7 +591,7 @@ def update_device(
         ).first()
         if not owner:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=http_status.HTTP_400_BAD_REQUEST,
                 detail=f"User with CID {update_data.owner_cid} not found"
             )
     
@@ -609,7 +638,7 @@ def rename_device(
     
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Device with ID {device_id} not found"
         )
     
@@ -638,7 +667,7 @@ def rename_device(
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to rename device: {str(e)}"
         )
 
@@ -676,7 +705,7 @@ def retag_device(
     
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Device with ID {device_id} not found"
         )
     
@@ -716,7 +745,7 @@ def retag_device(
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update device tags: {str(e)}"
         )
 
@@ -763,7 +792,7 @@ def merge_devices(
     
     if not primary_device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Primary device with ID {merge_data.primary_device_id} not found"
         )
     
@@ -776,7 +805,7 @@ def merge_devices(
         found_ids = {d.id for d in devices_to_merge}
         missing_ids = set(merge_data.device_ids_to_merge) - found_ids
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Devices not found: {list(missing_ids)}"
         )
     
@@ -870,7 +899,7 @@ def merge_devices(
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to merge devices: {str(e)}"
         )
 
@@ -903,7 +932,7 @@ def delete_device(
     
     if not device:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail=f"Device with ID {device_id} not found"
         )
     

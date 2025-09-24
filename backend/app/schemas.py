@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
 import re
@@ -67,6 +67,7 @@ class DeviceSchema(BaseModel):
     tags: List[DeviceTagSchema] = Field(default=[], description="List of device tags")
     groups: List[str] = Field(default=[], description="Groups that the device owner belongs to")
     policies: List[str] = Field(default=[], description="Policies that apply to this device/user")
+    search_context: Optional[Dict[str, Any]] = Field(None, description="Search context for navigation (query, filters, page)")
     
     @field_validator('ip_address', mode='before')
     @classmethod
