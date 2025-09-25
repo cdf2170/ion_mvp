@@ -34,6 +34,9 @@ ENV/
 .env.test.local
 .env.production.local
 
+# Railway setup scripts (contain secrets)
+setup_railway_microsoft.sh
+
 # Database
 *.db
 *.sqlite3

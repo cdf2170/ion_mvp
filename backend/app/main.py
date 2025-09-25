@@ -109,6 +109,13 @@ except Exception as e:
     router_import_errors['audit_insurance'] = str(e)
     routers_available['audit_insurance'] = None
 
+try:
+    from backend.app.routers import microsoft
+    routers_available['microsoft'] = microsoft
+except Exception as e:
+    router_import_errors['microsoft'] = str(e)
+    routers_available['microsoft'] = None
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application"""
@@ -209,6 +216,12 @@ def create_app() -> FastAPI:
         routers_included.append('audit_insurance')
     else:
         routers_failed.append('audit_insurance')
+
+    if routers_available['microsoft']:
+        app.include_router(routers_available['microsoft'].router, prefix="/v1")
+        routers_included.append('microsoft')
+    else:
+        routers_failed.append('microsoft')
     
     @app.get("/")
     def root():

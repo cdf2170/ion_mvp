@@ -11,7 +11,17 @@ class Settings:
         
         # Authentication
         self.demo_api_token = os.getenv("DEMO_API_TOKEN", "token 21700")
-        
+
+        # Encryption for API credentials
+        self.credential_encryption_key = os.getenv("CREDENTIAL_ENCRYPTION_KEY")
+        self.master_encryption_password = os.getenv("MASTER_ENCRYPTION_PASSWORD", "default-dev-password-change-in-prod")
+        self.encryption_salt = os.getenv("ENCRYPTION_SALT", "default-salt-change-in-prod")
+
+        # Microsoft Graph API (E5 Tenant) - Production secrets
+        self.microsoft_tenant_id = os.getenv("MICROSOFT_TENANT_ID")
+        self.microsoft_client_id = os.getenv("MICROSOFT_CLIENT_ID")
+        self.microsoft_client_secret = os.getenv("MICROSOFT_CLIENT_SECRET")
+
         # App
         self.app_name = os.getenv("APP_NAME", "MVP Backend")
         self.debug = os.getenv("DEBUG", "false").lower() == "true"
