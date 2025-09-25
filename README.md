@@ -202,68 +202,69 @@ Notes:
 - The OAuth router is mounted without the `/v1` prefix.
 - For a runtime-accurate dump of registered routes, call the running app's debug endpoint: `/v1/debug/routes`.
 
-# I think this is borked
+## Environment Variables
 
-| V                 | D          | D        |
-| ----------------- | ---------- | -------- |
-| `DATAASE_URL`     | `://:@:/_` | PSQL     |
-| `DEMO_API_TOKEN`  | `--`       | API      |
-| `ALLOWED_ORIGINS` | `://:`     | CORS (-) |
-| `APP_NAME`        | `MVP `     | A        |
-| `DEUG`            | ``         | E        |
+| Variable          | Default Value     | Description |
+| ----------------- | ----------------- | ----------- |
+| `DATABASE_URL`    | `postgresql://user:pass@localhost:5432/db_name` | PostgreSQL connection string |
+| `DEMO_API_TOKEN`  | `demo-token-123`  | API authentication token |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | CORS allowed origins (comma-separated) |
+| `APP_NAME`        | `Identity MVP`    | Application name |
+| `DEBUG`           | `false`           | Enable debug mode |
 
-## P S
+## Project Structure
 
 ```
 MVP/
- /
-    /
-        /
-           .y      # SQLAy
-           .y     # D
-        /
-           .y       # U API
-        y/
-           .y        # A
-        .y          # C
-        .y           # API
-        .y        # Py
- /                  # D
- -.y        # PSQL
- .          # Py
- _.y               # D
- .              # E
+├── backend/
+│   └── app/
+│       ├── db/
+│       │   ├── models.py      # SQLAlchemy models
+│       │   └── session.py     # Database session
+│       ├── routers/
+│       │   ├── users.py       # User API endpoints
+│       │   ├── devices.py     # Device API endpoints
+│       │   ├── apis.py        # API management
+│       │   ├── policies.py    # Policy management
+│       │   ├── history.py     # Audit history
+│       │   ├── groups.py      # Group management
+│       │   ├── access.py      # Access control
+│       │   └── oauth.py       # OAuth endpoints
+│       ├── main.py            # FastAPI app
+│       ├── config.py          # Configuration
+│       └── schemas.py         # Pydantic schemas
+├── alembic/                   # Database migrations
+├── requirements.txt           # Python dependencies
+├── seed_db.py                # Database seeding
+└── README.md                 # This file
 ```
 
-## P Dy
+## Deployment
 
-### Ry (R)
+### Railway (Recommended)
 
-S [RAILWAY_DEPLOY.](RAILWAY_DEPLOY.) Ry y .
+See [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md) for Railway deployment instructions.
 
-**Q Ry S:**
-
+**Quick Railway Setup:**
 ```
-  - @y/
-y
-y
-y
-y
+1. Connect GitHub repository
+2. Add PostgreSQL service
+3. Set environment variables
+4. Deploy automatically
 ```
 
-### M Dy
+### Manual Deployment
 
-:
+For manual deployment:
 
-. S `DEUG=`  
-. U `DEMO_API_TOKEN`
-. C `DATAASE_URL` y PSQL
-. S `ALLOWED_ORIGINS` y  
-. U WSGI G:
+1. Set `DEBUG=false` in environment
+2. Use production `DEMO_API_TOKEN`
+3. Configure `DATABASE_URL` for your PostgreSQL instance
+4. Set `ALLOWED_ORIGINS` for your frontend domain
+5. Use production WSGI server like Gunicorn:
 
 ```
-
- -  - ..UW ..: -- ...:
+gunicorn -w 4 -k uvicorn.workers.UvicornWorker backend.app.main:app --bind 0.0.0.0:8000
 ```
 
 # Trigger Railway deployment
