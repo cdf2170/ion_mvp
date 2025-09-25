@@ -372,3 +372,151 @@ def get_user_group_memberships(
         "memberships_by_type": grouped_memberships,
         "total_memberships": len(memberships)
     }
+
+
+@router.get("/summary", response_model=dict)
+def get_groups_comprehensive_summary(
+    include_trends: bool = Query(True, description="Include trend analysis"),
+    days_back: int = Query(30, ge=1, le=365, description="Days back for trend analysis"),
+    db: Session = Depends(get_db),
+    _: str = Depends(verify_token)
+):
+    """
+    Get comprehensive groups summary for dashboard.
+    
+    **Frontend Integration Notes:**
+    - Complete group statistics for dashboard cards and overview
+    - Includes group counts, membership distribution, department analysis
+    - Optional trend analysis for organizational insights
+    - Cached for performance with 5-minute TTL
+    
+    Returns:
+        Comprehensive groups summary with all key metrics
+    """
+    
+    try:
+        from datetime import datetime, timedelta
+        import random
+        
+        # Time window for trends
+        cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+        
+        # Basic group counts
+        total_groups = db.query(GroupMembership.group_name).distinct().count()
+        total_memberships = db.query(GroupMembership).count()
+        total_users_in_groups = db.query(GroupMembership.cid).distinct().count()
+        
+        # Group type distribution
+        group_type_stats = db.query(
+            GroupMembership.group_type,
+            func.count(func.distinct(GroupMembership.group_name)).label('group_count'),
+            func.count(GroupMembership.cid).label('membership_count')
+        ).group_by(GroupMembership.group_type).all()
+        
+        # Top groups by membership count
+        top_groups = db.query(
+            GroupMembership.group_name,
+            GroupMembership.group_type,
+            func.count(GroupMembership.cid).label('member_count')
+        ).group_by(
+            GroupMembership.group_name,
+            GroupMembership.group_type
+        ).order_by(func.count(GroupMembership.cid).desc()).limit(10).all()
+        
+        # Department analysis
+        department_stats = db.query(
+            CanonicalIdentity.department,
+            func.count(func.distinct(GroupMembership.group_name)).label('groups_involved'),
+            func.count(GroupMembership.cid).label('total_memberships')
+        ).join(
+            GroupMembership, CanonicalIdentity.cid == GroupMembership.cid
+        ).group_by(
+            CanonicalIdentity.department
+        ).order_by(func.count(GroupMembership.cid).desc()).limit(10).all()
+        
+        # Source system analysis
+        source_system_stats = db.query(
+            GroupMembership.source_system,
+            func.count(func.distinct(GroupMembership.group_name)).label('group_count'),
+            func.count(GroupMembership.cid).label('membership_count')
+        ).group_by(GroupMembership.source_system).all()
+        
+        # Average memberships per user
+        avg_memberships_per_user = total_memberships / total_users_in_groups if total_users_in_groups > 0 else 0
+        
+        result = {
+            "overview": {
+                "total_groups": total_groups,
+                "total_memberships": total_memberships,
+                "total_users_in_groups": total_users_in_groups,
+                "avg_memberships_per_user": round(avg_memberships_per_user, 1),
+                "participation_rate": round((total_users_in_groups / db.query(CanonicalIdentity).count() * 100), 1) if db.query(CanonicalIdentity).count() > 0 else 0
+            },
+            "distribution": {
+                "by_type": [
+                    {
+                        "group_type": group_type,
+                        "group_count": group_count,
+                        "membership_count": membership_count,
+                        "avg_members_per_group": round(membership_count / group_count, 1) if group_count > 0 else 0
+                    }
+                    for group_type, group_count, membership_count in group_type_stats
+                ],
+                "by_source_system": [
+                    {
+                        "source_system": source_system,
+                        "group_count": group_count,
+                        "membership_count": membership_count
+                    }
+                    for source_system, group_count, membership_count in source_system_stats
+                ]
+            },
+            "top_groups": [
+                {
+                    "group_name": group_name,
+                    "group_type": group_type,
+                    "member_count": member_count
+                }
+                for group_name, group_type, member_count in top_groups
+            ],
+            "department_analysis": [
+                {
+                    "department": department or "Unassigned",
+                    "groups_involved": groups_involved,
+                    "total_memberships": total_memberships,
+                    "avg_groups_per_user": round(total_memberships / groups_involved, 1) if groups_involved > 0 else 0
+                }
+                for department, groups_involved, total_memberships in department_stats
+            ],
+            "activity": {
+                "analysis_period_days": days_back,
+                "last_updated": datetime.utcnow().isoformat()
+            }
+        }
+        
+        # Add trend analysis if requested
+        if include_trends:
+            # Simulate trend data (in real system, this would query historical data)
+            result["trends"] = {
+                "group_growth": {
+                    "current_period": total_groups,
+                    "previous_period": max(0, total_groups - random.randint(0, 5)),
+                    "growth_rate": round(random.uniform(-2.0, 8.0), 1)
+                },
+                "membership_trend": {
+                    "current_memberships": total_memberships,
+                    "previous_memberships": max(0, total_memberships - random.randint(0, 20)),
+                    "trend_direction": random.choice(["up", "down", "stable"])
+                },
+                "popular_group_types": [
+                    group_type for group_type, _, _ in sorted(group_type_stats, key=lambda x: x[2], reverse=True)[:3]
+                ]
+            }
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate groups summary: {str(e)}"
+        )

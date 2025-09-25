@@ -1,7 +1,10 @@
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
+import re
+import ipaddress
+import json
 from backend.app.db.models import (
     StatusEnum, DeviceStatusEnum, DeviceTagEnum, PolicyTypeEnum, 
     PolicySeverityEnum, ConfigChangeTypeEnum, ActivityTypeEnum,
@@ -64,6 +67,7 @@ class DeviceSchema(BaseModel):
     tags: List[DeviceTagSchema] = Field(default=[], description="List of device tags")
     groups: List[str] = Field(default=[], description="Groups that the device owner belongs to")
     policies: List[str] = Field(default=[], description="Policies that apply to this device/user")
+    search_context: Optional[Dict[str, Any]] = Field(None, description="Search context for navigation (query, filters, page)")
     
     @field_validator('ip_address', mode='before')
     @classmethod
@@ -114,22 +118,32 @@ class AccountSchema(BaseModel):
 
 class UserListItemSchema(BaseModel):
     """
-    Minimal user information for list views.
+    Enhanced user information for list views including device relationships.
     
     Attributes:
         cid: Canonical Identity - unique user identifier across all systems
         email: Primary email address
+        full_name: User's full name
         department: Department name
+        role: Job title/role
+        location: Physical location
         last_seen: Last time user was active
         status: User status (Active/Disabled)
+        device_count: Number of devices owned by user
+        groups_count: Number of group memberships
     """
     model_config = ConfigDict(from_attributes=True)
     
     cid: UUID = Field(..., description="Canonical Identity - unique user identifier")
     email: str = Field(..., description="Primary email address")
+    full_name: str = Field(..., description="User's full name")
     department: str = Field(..., description="Department name")
+    role: str = Field(..., description="Job title/role")
+    location: Optional[str] = Field(None, description="Physical location")
     last_seen: datetime = Field(..., description="Last time user was active")
     status: StatusEnum = Field(..., description="User status (Active/Disabled)")
+    device_count: int = Field(..., description="Number of devices owned by user")
+    groups_count: int = Field(..., description="Number of group memberships")
 
 
 class UserDetailSchema(BaseModel):
@@ -280,6 +294,125 @@ class DeviceTagRequest(BaseModel):
     tags: List[DeviceTagEnum] = Field(..., description="List of tags to set for the device")
 
 
+class DeviceRenameRequest(BaseModel):
+    """
+    Request to rename a device.
+    
+    Attributes:
+        name: New device name
+    """
+    name: str = Field(..., min_length=1, max_length=255, description="New device name")
+    
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        """Validate device name format."""
+        if not v or not v.strip():
+            raise ValueError('Device name cannot be empty')
+        
+        # Basic validation for device names
+        if len(v.strip()) < 1:
+            raise ValueError('Device name must be at least 1 character')
+        
+        # Remove excessive whitespace
+        return v.strip()
+
+
+class DeviceVLANRequest(BaseModel):
+    """
+    Request to move device to a different VLAN.
+    
+    Attributes:
+        vlan: New VLAN identifier
+    """
+    vlan: str = Field(..., min_length=1, max_length=100, description="New VLAN identifier")
+    
+    @field_validator('vlan')
+    @classmethod 
+    def validate_vlan(cls, v: str) -> str:
+        """Validate VLAN format."""
+        if not v or not v.strip():
+            raise ValueError('VLAN cannot be empty')
+        return v.strip()
+
+
+class DeviceMergeRequest(BaseModel):
+    """
+    Request to merge multiple devices into one.
+    
+    Attributes:
+        primary_device_id: The device to keep (target of merge)
+        device_ids_to_merge: List of device IDs to merge into the primary device
+        merge_strategy: How to handle conflicts (use the strategy from primary device)
+    """
+    primary_device_id: UUID = Field(..., description="Device ID to keep as the primary device")
+    device_ids_to_merge: List[UUID] = Field(..., min_items=1, description="List of device IDs to merge into primary")
+    
+    @field_validator('device_ids_to_merge')
+    @classmethod
+    def validate_merge_devices(cls, v: List[UUID], info) -> List[UUID]:
+        """Validate merge device list."""
+        if not v:
+            raise ValueError('Must specify at least one device to merge')
+        
+        # Check if primary device is in the merge list (not allowed)
+        primary_id = info.data.get('primary_device_id')
+        if primary_id and primary_id in v:
+            raise ValueError('Primary device cannot be in the merge list')
+        
+        # Check for duplicates
+        if len(v) != len(set(v)):
+            raise ValueError('Duplicate device IDs in merge list')
+            
+        return v
+
+
+class DeviceMergeResponse(BaseModel):
+    """
+    Response from device merge operation.
+    
+    Attributes:
+        merged_device: The resulting merged device
+        merged_count: Number of devices that were merged
+        deleted_device_ids: List of device IDs that were deleted during merge
+    """
+    merged_device: DeviceSchema
+    merged_count: int = Field(..., description="Number of devices merged into primary")
+    deleted_device_ids: List[UUID] = Field(..., description="Device IDs that were deleted")
+
+
+class DashboardSummaryCard(BaseModel):
+    """
+    Individual summary card for dashboard.
+    
+    Attributes:
+        title: Card title
+        value: Main numeric value
+        subtitle: Additional context
+        trend: Trend indicator (up/down/neutral)
+        change_percent: Percentage change from previous period
+    """
+    title: str = Field(..., description="Card title")
+    value: int = Field(..., description="Main numeric value")
+    subtitle: str = Field(..., description="Additional context")
+    trend: str = Field(..., description="Trend direction: up, down, neutral")
+    change_percent: Optional[float] = Field(None, description="Percentage change")
+
+
+class DashboardSummaryResponse(BaseModel):
+    """
+    Complete dashboard summary response.
+    
+    Attributes:
+        cards: List of summary cards
+        last_updated: When the summary was generated
+        system_health: Overall system health indicator
+    """
+    cards: List[DashboardSummaryCard] = Field(..., description="Summary cards")
+    last_updated: datetime = Field(..., description="When summary was generated")
+    system_health: str = Field(..., description="Overall system health: healthy, warning, critical")
+
+
 class DeviceCreateRequest(BaseModel):
     """
     Request to create a new device.
@@ -304,6 +437,46 @@ class DeviceCreateRequest(BaseModel):
     status: DeviceStatusEnum = Field(DeviceStatusEnum.UNKNOWN, description="Connection status")
     compliant: bool = Field(True, description="Compliance status")
     tags: List[DeviceTagEnum] = Field(default=[], description="List of device tags")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 3:
+            raise ValueError('Device name must be at least 3 characters long')
+        if len(v) > 100:
+            raise ValueError('Device name must be less than 100 characters')
+        return v.strip()
+
+    @field_validator('ip_address')
+    @classmethod
+    def validate_ip_address(cls, v):
+        if v is None:
+            return v
+        try:
+            ipaddress.ip_address(v.strip())
+            return v.strip()
+        except ValueError:
+            raise ValueError('Invalid IP address format')
+
+    @field_validator('mac_address')
+    @classmethod
+    def validate_mac_address(cls, v):
+        if v is None:
+            return v
+        # MAC address pattern: XX:XX:XX:XX:XX:XX
+        mac_pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+        if not re.match(mac_pattern, v.strip()):
+            raise ValueError('Invalid MAC address format (expected XX:XX:XX:XX:XX:XX)')
+        return v.strip().lower()
+
+    @field_validator('os_version')
+    @classmethod
+    def validate_os_version(cls, v):
+        if v is None:
+            return v
+        if len(v.strip()) > 200:
+            raise ValueError('OS version must be less than 200 characters')
+        return v.strip()
 
 
 class DeviceListResponse(BaseModel):
@@ -391,6 +564,36 @@ class PolicyCreateRequest(BaseModel):
     severity: PolicySeverityEnum = Field(PolicySeverityEnum.MEDIUM, description="Policy severity level")
     enabled: bool = Field(True, description="Whether policy should be enabled")
     configuration: Optional[str] = Field(None, description="Policy configuration as JSON string")
+
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v):
+        if not v or len(v.strip()) < 3:
+            raise ValueError('Policy name must be at least 3 characters long')
+        if len(v) > 200:
+            raise ValueError('Policy name must be less than 200 characters')
+        return v.strip()
+
+    @field_validator('description')
+    @classmethod
+    def validate_description(cls, v):
+        if v is None:
+            return v
+        if len(v.strip()) > 1000:
+            raise ValueError('Policy description must be less than 1000 characters')
+        return v.strip()
+
+    @field_validator('configuration')
+    @classmethod
+    def validate_configuration(cls, v):
+        if v is None:
+            return v
+        try:
+            # Validate that it's valid JSON
+            json.loads(v)
+            return v
+        except json.JSONDecodeError:
+            raise ValueError('Configuration must be valid JSON')
 
 
 class PolicyUpdateRequest(BaseModel):
@@ -624,6 +827,257 @@ class ForceCheckinResult(BaseModel):
     compliance_scans_completed: int = Field(..., description="Number of compliance scans completed")
     devices_updated: List[UUID] = Field(..., description="List of device IDs that were updated")
     message: str = Field(..., description="Human-readable result message")
+
+
+class FullDiskScanRequest(BaseModel):
+    """
+    Request for full disk scan operation.
+    
+    Attributes:
+        scan_depth: Depth of scan (quick, standard, deep)
+        include_user_data: Whether to scan user data directories
+        check_permissions: Whether to check file permissions
+        analyze_disk_usage: Whether to analyze disk space usage
+        compliance_check: Whether to run compliance checks
+    """
+    scan_depth: str = Field("standard", description="Scan depth: quick, standard, deep")
+    include_user_data: bool = Field(True, description="Scan user data directories")
+    check_permissions: bool = Field(True, description="Check file permissions")
+    analyze_disk_usage: bool = Field(True, description="Analyze disk space usage")
+    compliance_check: bool = Field(True, description="Run compliance checks")
+    
+    @field_validator('scan_depth')
+    @classmethod
+    def validate_scan_depth(cls, v: str) -> str:
+        """Validate scan depth values."""
+        allowed_depths = ['quick', 'standard', 'deep']
+        if v.lower() not in allowed_depths:
+            raise ValueError(f'scan_depth must be one of: {", ".join(allowed_depths)}')
+        return v.lower()
+
+
+class FullDiskScanResult(BaseModel):
+    """
+    Result of full disk scan operation.
+    
+    Attributes:
+        scan_id: Unique identifier for this scan
+        user_cid: User's canonical identity
+        devices_scanned: Number of devices scanned
+        scan_duration_seconds: Time taken for scan
+        files_scanned: Total files scanned
+        issues_found: Number of compliance issues found
+        disk_usage_gb: Total disk usage in GB
+        security_alerts: Number of security alerts
+        scan_summary: Human-readable summary
+        detailed_results: Detailed scan results per device
+    """
+    scan_id: UUID = Field(..., description="Unique identifier for this scan")
+    user_cid: UUID = Field(..., description="User's canonical identity")
+    devices_scanned: int = Field(..., description="Number of devices scanned")
+    scan_duration_seconds: float = Field(..., description="Time taken for scan")
+    files_scanned: int = Field(..., description="Total files scanned")
+    issues_found: int = Field(..., description="Number of compliance issues found")
+    disk_usage_gb: float = Field(..., description="Total disk usage in GB")
+    security_alerts: int = Field(..., description="Number of security alerts")
+    scan_summary: str = Field(..., description="Human-readable summary")
+    detailed_results: List[dict] = Field(..., description="Detailed scan results per device")
+
+
+class BulkUserOperationRequest(BaseModel):
+    """
+    Request for bulk user operations.
+    
+    Attributes:
+        user_cids: List of user CIDs to operate on
+        operation_type: Type of operation (scan, reset_password, force_checkin)
+        operation_params: Parameters specific to the operation
+    """
+    user_cids: List[UUID] = Field(..., min_items=1, description="List of user CIDs")
+    operation_type: str = Field(..., description="Operation type")
+    operation_params: dict = Field(default={}, description="Operation-specific parameters")
+    
+    @field_validator('operation_type')
+    @classmethod
+    def validate_operation_type(cls, v: str) -> str:
+        """Validate operation type."""
+        allowed_ops = ['scan', 'reset_password', 'force_checkin', 'full_disk_scan']
+        if v.lower() not in allowed_ops:
+            raise ValueError(f'operation_type must be one of: {", ".join(allowed_ops)}')
+        return v.lower()
+
+
+class BulkUserOperationResult(BaseModel):
+    """
+    Result of bulk user operations.
+    
+    Attributes:
+        operation_id: Unique identifier for this operation
+        operation_type: Type of operation performed
+        total_users: Total users in the operation
+        successful_operations: Number of successful operations
+        failed_operations: Number of failed operations
+        results: Detailed results per user
+        summary: Human-readable summary
+    """
+    operation_id: UUID = Field(..., description="Unique identifier for this operation")
+    operation_type: str = Field(..., description="Type of operation performed")
+    total_users: int = Field(..., description="Total users in the operation")
+    successful_operations: int = Field(..., description="Number of successful operations")
+    failed_operations: int = Field(..., description="Number of failed operations")
+    results: List[dict] = Field(..., description="Detailed results per user")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class DeviceAssignmentRequest(BaseModel):
+    """
+    Request to assign devices to a user.
+    
+    Attributes:
+        device_ids: List of device IDs to assign
+        target_user_cid: User CID to assign devices to
+        force_reassign: Whether to force reassignment if devices are already assigned
+        transfer_activity_history: Whether to transfer activity history to new owner
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to assign")
+    target_user_cid: UUID = Field(..., description="User CID to assign devices to")
+    force_reassign: bool = Field(False, description="Force reassignment if devices already assigned")
+    transfer_activity_history: bool = Field(True, description="Transfer activity history to new owner")
+
+
+class DeviceAssignmentResult(BaseModel):
+    """
+    Result of device assignment operation.
+    
+    Attributes:
+        assignment_id: Unique identifier for this assignment operation
+        target_user_cid: User CID devices were assigned to
+        devices_assigned: Number of devices successfully assigned
+        devices_failed: Number of devices that failed to assign
+        assignment_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    assignment_id: UUID = Field(..., description="Unique identifier for assignment operation")
+    target_user_cid: UUID = Field(..., description="User CID devices were assigned to")
+    devices_assigned: int = Field(..., description="Number of devices successfully assigned")
+    devices_failed: int = Field(..., description="Number of devices that failed to assign")
+    assignment_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class DeviceTransferRequest(BaseModel):
+    """
+    Request to transfer device ownership between users.
+    
+    Attributes:
+        device_ids: List of device IDs to transfer
+        source_user_cid: Current owner's CID
+        target_user_cid: New owner's CID
+        transfer_activity_history: Whether to transfer activity history
+        notify_users: Whether to notify both users of transfer
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to transfer")
+    source_user_cid: UUID = Field(..., description="Current owner's CID")
+    target_user_cid: UUID = Field(..., description="New owner's CID")
+    transfer_activity_history: bool = Field(True, description="Transfer activity history")
+    notify_users: bool = Field(True, description="Notify both users of transfer")
+
+
+class DeviceTransferResult(BaseModel):
+    """
+    Result of device transfer operation.
+    
+    Attributes:
+        transfer_id: Unique identifier for this transfer operation
+        source_user_cid: Original owner's CID
+        target_user_cid: New owner's CID
+        devices_transferred: Number of devices successfully transferred
+        devices_failed: Number of devices that failed to transfer
+        transfer_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    transfer_id: UUID = Field(..., description="Unique identifier for transfer operation")
+    source_user_cid: UUID = Field(..., description="Original owner's CID")
+    target_user_cid: UUID = Field(..., description="New owner's CID")
+    devices_transferred: int = Field(..., description="Number of devices successfully transferred")
+    devices_failed: int = Field(..., description="Number of devices that failed to transfer")
+    transfer_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class DeviceUnassignmentRequest(BaseModel):
+    """
+    Request to unassign devices from users.
+    
+    Attributes:
+        device_ids: List of device IDs to unassign
+        preserve_activity_history: Whether to preserve activity history
+        reason: Reason for unassignment
+    """
+    device_ids: List[UUID] = Field(..., min_items=1, description="List of device IDs to unassign")
+    preserve_activity_history: bool = Field(True, description="Preserve activity history")
+    reason: str = Field("Administrative action", description="Reason for unassignment")
+
+
+class DeviceUnassignmentResult(BaseModel):
+    """
+    Result of device unassignment operation.
+    
+    Attributes:
+        unassignment_id: Unique identifier for this unassignment operation
+        devices_unassigned: Number of devices successfully unassigned
+        devices_failed: Number of devices that failed to unassign
+        unassignment_details: Detailed results per device
+        summary: Human-readable summary
+    """
+    unassignment_id: UUID = Field(..., description="Unique identifier for unassignment operation")
+    devices_unassigned: int = Field(..., description="Number of devices successfully unassigned")
+    devices_failed: int = Field(..., description="Number of devices that failed to unassign")
+    unassignment_details: List[dict] = Field(..., description="Detailed results per device")
+    summary: str = Field(..., description="Human-readable summary")
+
+
+class BulkDeviceManagementRequest(BaseModel):
+    """
+    Request for bulk device management operations.
+    
+    Attributes:
+        operation_type: Type of operation (assign, transfer, unassign)
+        operations: List of individual operations to perform
+    """
+    operation_type: str = Field(..., description="Operation type")
+    operations: List[dict] = Field(..., min_items=1, description="List of operations to perform")
+    
+    @field_validator('operation_type')
+    @classmethod
+    def validate_operation_type(cls, v: str) -> str:
+        """Validate operation type."""
+        allowed_ops = ['assign', 'transfer', 'unassign']
+        if v.lower() not in allowed_ops:
+            raise ValueError(f'operation_type must be one of: {", ".join(allowed_ops)}')
+        return v.lower()
+
+
+class BulkDeviceManagementResult(BaseModel):
+    """
+    Result of bulk device management operations.
+    
+    Attributes:
+        bulk_operation_id: Unique identifier for this bulk operation
+        operation_type: Type of operations performed
+        total_operations: Total number of operations requested
+        successful_operations: Number of successful operations
+        failed_operations: Number of failed operations
+        operation_results: Detailed results per operation
+        summary: Human-readable summary
+    """
+    bulk_operation_id: UUID = Field(..., description="Unique identifier for bulk operation")
+    operation_type: str = Field(..., description="Type of operations performed")
+    total_operations: int = Field(..., description="Total number of operations requested")
+    successful_operations: int = Field(..., description="Number of successful operations")
+    failed_operations: int = Field(..., description="Number of failed operations")
+    operation_results: List[dict] = Field(..., description="Detailed results per operation")
+    summary: str = Field(..., description="Human-readable summary")
 
 
 # Sync Operation Schema

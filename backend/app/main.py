@@ -3,6 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import sys
 import traceback
+import time
+from typing import Dict, Any, Optional
+
+# Import cache from separate module
+from backend.app.cache import app_cache
+
+# Import auth for cache endpoints
+try:
+    from backend.app.security.auth import verify_token
+except ImportError:
+    def verify_token(token):
+        return token  # Fallback
 
 # Import settings first
 try:
@@ -75,6 +87,27 @@ try:
 except Exception as e:
     router_import_errors['access'] = str(e)
     routers_available['access'] = None
+
+try:
+    from backend.app.routers import dashboard
+    routers_available['dashboard'] = dashboard
+except Exception as e:
+    router_import_errors['dashboard'] = str(e)
+    routers_available['dashboard'] = None
+
+try:
+    from backend.app.routers import agents
+    routers_available['agents'] = agents
+except Exception as e:
+    router_import_errors['agents'] = str(e)
+    routers_available['agents'] = None
+
+try:
+    from backend.app.routers import audit_insurance
+    routers_available['audit_insurance'] = audit_insurance
+except Exception as e:
+    router_import_errors['audit_insurance'] = str(e)
+    routers_available['audit_insurance'] = None
 
 
 def create_app() -> FastAPI:
@@ -158,6 +191,24 @@ def create_app() -> FastAPI:
         routers_included.append('access')
     else:
         routers_failed.append('access')
+    
+    if routers_available['dashboard']:
+        app.include_router(routers_available['dashboard'].router, prefix="/v1")
+        routers_included.append('dashboard')
+    else:
+        routers_failed.append('dashboard')
+
+    if routers_available['agents']:
+        app.include_router(routers_available['agents'].router, prefix="/v1")
+        routers_included.append('agents')
+    else:
+        routers_failed.append('agents')
+
+    if routers_available['audit_insurance']:
+        app.include_router(routers_available['audit_insurance'].router)  # Already has /v1 prefix
+        routers_included.append('audit_insurance')
+    else:
+        routers_failed.append('audit_insurance')
     
     @app.get("/")
     def root():
@@ -243,6 +294,68 @@ def create_app() -> FastAPI:
     def liveness_check():
         """Liveness probe for Railway"""
         return {"status": "alive"}
+    
+    @app.get("/v1/system/status")
+    def system_status(_: str = Depends(verify_token)):
+        """Comprehensive system status for frontend header"""
+        status_data = {
+            "system_connected": True,
+            "api_healthy": True,
+            "database_connected": False,
+            "services": {
+                "api": {"status": "healthy", "response_time_ms": None},
+                "database": {"status": "unknown", "last_check": None},
+                "cache": {"status": "healthy", "size": 0}
+            },
+            "timestamp": time.time(),
+            "environment": os.getenv("RAILWAY_ENVIRONMENT", "development")
+        }
+        
+        # Check database connectivity with timing
+        db_start = time.time()
+        try:
+            from backend.app.db.session import engine
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                db_time = round((time.time() - db_start) * 1000, 2)
+                status_data["database_connected"] = True
+                status_data["services"]["database"] = {
+                    "status": "connected", 
+                    "response_time_ms": db_time,
+                    "last_check": time.time()
+                }
+        except Exception as e:
+            db_time = round((time.time() - db_start) * 1000, 2)
+            status_data["database_connected"] = False
+            status_data["system_connected"] = False
+            status_data["api_healthy"] = False
+            status_data["services"]["database"] = {
+                "status": "error", 
+                "error": str(e)[:100],
+                "response_time_ms": db_time,
+                "last_check": time.time()
+            }
+        
+        # Check API response time
+        api_start = time.time()
+        api_time = round((time.time() - api_start) * 1000, 2)
+        status_data["services"]["api"]["response_time_ms"] = api_time
+        
+        # Check cache status
+        try:
+            cache_size = app_cache.size()
+            status_data["services"]["cache"] = {
+                "status": "healthy",
+                "size": cache_size
+            }
+        except Exception as e:
+            status_data["services"]["cache"] = {
+                "status": "error", 
+                "error": str(e)[:50]
+            }
+        
+        return status_data
     
     @app.get("/v1/cors-debug")
     def cors_debug():
@@ -339,6 +452,47 @@ def create_app() -> FastAPI:
                 status_code=500, 
                 detail=f"Seeding error: {str(e)}"
             )
+
+    @app.post("/v1/admin/simple-seed")  
+    def simple_seed_admin(_: str = Depends(verify_token)):
+        """TEMPORARY: Seed Railway database with simple user data only"""
+        try:
+            # Import simple seeding function
+            from simple_seed import simple_seed
+            
+            # Run simple seeding
+            simple_seed()
+            
+            return {"message": "Simple database seeded successfully"}
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Simple seeding error: {str(e)}"
+            )
+
+    @app.get("/v1/admin/test-device-format")
+    def test_device_format(_: str = Depends(verify_token)):
+        """TEMPORARY: Test what device format would be generated"""
+        import random
+        
+        # Sample device types from seeding script
+        sample_types = ["MacBook Pro 16\"", "ThinkPad P1 Gen 6", "Dell XPS 15", "Surface Laptop 5"]
+        device_type = random.choice(sample_types)
+        
+        # Test the enhanced format logic
+        if "MacBook" in device_type or "Mac" in device_type:
+            os_base_options = ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]
+            os_options = [f"{device_type} - {os}" for os in os_base_options]
+        else:
+            os_base_options = ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]
+            os_options = [f"{device_type} - {os}" for os in os_base_options]
+        
+        return {
+            "device_type": device_type,
+            "enhanced_format": random.choice(os_options),
+            "message": "This shows what the enhanced device info format would look like"
+        }
     
     @app.post("/v1/admin/run-migration")
     def run_migration_admin(_: str = Depends(verify_token)):
@@ -364,24 +518,144 @@ def create_app() -> FastAPI:
                 )
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error running migration: {str(e)}")
+
+    @app.post("/v1/admin/run-agent-migration")
+    def run_agent_migration_admin(_: str = Depends(verify_token)):
+        """Run agent support database migration"""
+        try:
+            import subprocess
+            import sys
+            
+            # Run the agent migration script
+            result = subprocess.run([sys.executable, "run_agent_migration.py"], 
+                                  capture_output=True, text=True, cwd="/app")
+            
+            if result.returncode == 0:
+                return {
+                    "status": "success",
+                    "message": "Agent migration completed successfully",
+                    "output": result.stdout
+                }
+            else:
+                raise HTTPException(
+                    status_code=500, 
+                    detail=f"Agent migration failed: {result.stderr}"
+                )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error running agent migration: {str(e)}")
     
     @app.post("/v1/admin/fix-database")
     def fix_database(_: str = Depends(verify_token)):
-        """TEMPORARY: Add missing group columns to Railway database"""
+        """Add missing agent columns to Railway database"""
         try:
             from backend.app.db.session import engine
             from sqlalchemy import text
             
+            results = []
+            
             with engine.connect() as conn:
-                # Add the missing columns
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS group_type VARCHAR"))
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS description VARCHAR"))
-                conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS source_system VARCHAR"))
+                # Create AgentStatusEnum if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        DO $$ BEGIN
+                            CREATE TYPE agentstatusenum AS ENUM ('INSTALLED', 'RUNNING', 'STOPPED', 'ERROR', 'UPDATING', 'UNINSTALLED');
+                        EXCEPTION
+                            WHEN duplicate_object THEN null;
+                        END $$;
+                    """))
+                    results.append("AgentStatusEnum created/verified")
+                except Exception as e:
+                    results.append(f"AgentStatusEnum error: {str(e)}")
+                
+                # Create AgentEventTypeEnum if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        DO $$ BEGIN
+                            CREATE TYPE agenteventtypeenum AS ENUM (
+                                'USER_LOGIN', 'USER_LOGOUT', 'PROCESS_START', 'PROCESS_STOP', 
+                                'NETWORK_CONNECTION', 'USB_DEVICE_CONNECTED', 'USB_DEVICE_DISCONNECTED',
+                                'SERVICE_START', 'SERVICE_STOP', 'REGISTRY_CHANGE', 'FILE_ACCESS',
+                                'SECURITY_EVENT', 'SYSTEM_BOOT', 'SYSTEM_SHUTDOWN', 'ERROR'
+                            );
+                        EXCEPTION
+                            WHEN duplicate_object THEN null;
+                        END $$;
+                    """))
+                    results.append("AgentEventTypeEnum created/verified")
+                except Exception as e:
+                    results.append(f"AgentEventTypeEnum error: {str(e)}")
+                
+                # Add agent columns to devices table
+                agent_columns = [
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_installed BOOLEAN NOT NULL DEFAULT false",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_version VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_status agentstatusenum",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_last_checkin TIMESTAMP WITH TIME ZONE",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_config_hash VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_data JSON",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS hardware_uuid VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS motherboard_serial VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS cpu_id VARCHAR"
+                ]
+                
+                for column_sql in agent_columns:
+                    try:
+                        conn.execute(text(column_sql))
+                        results.append(f"✓ {column_sql}")
+                    except Exception as e:
+                        results.append(f"✗ {column_sql} - {str(e)}")
+                
+                # Create agent_events table if it doesn't exist
+                try:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS agent_events (
+                            id UUID PRIMARY KEY,
+                            device_id UUID NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+                            event_type agenteventtypeenum NOT NULL,
+                            timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+                            event_data JSON NOT NULL,
+                            user_context VARCHAR,
+                            risk_score INTEGER NOT NULL DEFAULT 0 CHECK (risk_score >= 0 AND risk_score <= 100),
+                            correlation_id VARCHAR,
+                            parent_event_id UUID REFERENCES agent_events(id)
+                        )
+                    """))
+                    results.append("agent_events table created/verified")
+                except Exception as e:
+                    results.append(f"agent_events table error: {str(e)}")
+                
+                # Add the missing group columns too
+                try:
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS group_type VARCHAR"))
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS description VARCHAR"))
+                    conn.execute(text("ALTER TABLE group_memberships ADD COLUMN IF NOT EXISTS source_system VARCHAR"))
+                    results.append("Group membership columns added")
+                except Exception as e:
+                    results.append(f"Group columns error: {str(e)}")
+                
                 conn.commit()
             
-            return {"message": "Database fixed - missing columns added"}
+            return {
+                "message": "Database migration completed", 
+                "results": results
+            }
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Fix error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Migration error: {str(e)}")
+    
+    # Cache management endpoints
+    @app.post("/v1/cache/clear")
+    def clear_cache(_: str = Depends(verify_token)):
+        """Clear all cache entries"""
+        app_cache.clear()
+        return {"message": "Cache cleared successfully"}
+    
+    @app.get("/v1/cache/status")
+    def cache_status(_: str = Depends(verify_token)):
+        """Get cache status and statistics"""
+        return {
+            "cache_size": app_cache.size(),
+            "message": "Cache status retrieved"
+        }
     
     return app
 
