@@ -483,6 +483,24 @@ def create_app() -> FastAPI:
                 status_code=500, 
                 detail=f"Simple seeding error: {str(e)}"
             )
+    
+    @app.post("/v1/admin/seed-modern-database")  
+    def seed_modern_database_admin(_: str = Depends(verify_token)):
+        """Seed database with modern, comprehensive enterprise data"""
+        try:
+            # Import modern seeding function
+            from modern_seed_db import seed_database
+            
+            # Run modern seeding
+            seed_database()
+            
+            return {"message": "Modern database seeded successfully"}
+            
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Modern seeding error: {str(e)}"
+            )
 
     @app.get("/v1/admin/test-device-format")
     def test_device_format(_: str = Depends(verify_token)):
