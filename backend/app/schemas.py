@@ -27,6 +27,28 @@ class DeviceTagSchema(BaseModel):
     tag: DeviceTagEnum = Field(..., description="Tag value")
 
 
+class PolicySchema(BaseModel):
+    """
+    Policy schema for device/user policy information.
+    
+    Attributes:
+        id: Unique policy identifier
+        name: Policy name
+        description: Policy description
+        policy_type: Type of policy (Access Control, Device Compliance, etc.)
+        severity: Policy severity level
+        enabled: Whether policy is enabled
+    """
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID = Field(..., description="Unique policy identifier")
+    name: str = Field(..., description="Policy name")
+    description: Optional[str] = Field(None, description="Policy description")
+    policy_type: str = Field(..., description="Type of policy")
+    severity: str = Field(..., description="Policy severity level")
+    enabled: bool = Field(..., description="Whether policy is enabled")
+
+
 class DeviceSchema(BaseModel):
     """
     Device information schema for frontend consumption.
@@ -43,10 +65,13 @@ class DeviceSchema(BaseModel):
         ip_address: Device IP address
         mac_address: Device MAC address
         vlan: VLAN identifier
+        device_type: Device type (MacBook Pro, HP Spectre, etc.)
         os_version: Operating system version
         last_check_in: Last time device checked in
         status: Connection status (Connected/Disconnected/Unknown)
         tags: List of device tags
+        groups: Groups that the device owner belongs to
+        policies: Policy objects that apply to this device/user
     """
     model_config = ConfigDict(from_attributes=True)
     
@@ -61,12 +86,13 @@ class DeviceSchema(BaseModel):
     ip_address: Optional[str] = Field(None, description="Device IP address")
     mac_address: Optional[str] = Field(None, description="Device MAC address")
     vlan: Optional[str] = Field(None, description="VLAN identifier")
+    device_type: Optional[str] = Field(None, description="Device type (MacBook Pro, HP Spectre, etc.)")
     os_version: Optional[str] = Field(None, description="Operating system version")
     last_check_in: datetime = Field(..., description="Last time device checked in")
     status: DeviceStatusEnum = Field(..., description="Connection status")
     tags: List[DeviceTagSchema] = Field(default=[], description="List of device tags")
     groups: List[str] = Field(default=[], description="Groups that the device owner belongs to")
-    policies: List[str] = Field(default=[], description="Policies that apply to this device/user")
+    policies: List[PolicySchema] = Field(default=[], description="Policy objects that apply to this device/user")
     search_context: Optional[Dict[str, Any]] = Field(None, description="Search context for navigation (query, filters, page)")
     
     @field_validator('ip_address', mode='before')

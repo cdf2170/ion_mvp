@@ -393,6 +393,7 @@ def seed_database():
                         "VLAN_100_CORPORATE", "VLAN_200_GUEST", "VLAN_300_SECURE", 
                         "VLAN_400_BYOD", "DMZ_ZONE", "QUARANTINE_VLAN"
                     ]),
+                    device_type=device_type,
                     os_version=random.choice(os_options),
                     last_check_in=fake.date_time_between(start_date='-24h', end_date='now'),
                     status=random.choice([

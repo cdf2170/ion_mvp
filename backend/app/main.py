@@ -608,7 +608,8 @@ def create_app() -> FastAPI:
                     "ALTER TABLE devices ADD COLUMN IF NOT EXISTS agent_data JSON",
                     "ALTER TABLE devices ADD COLUMN IF NOT EXISTS hardware_uuid VARCHAR",
                     "ALTER TABLE devices ADD COLUMN IF NOT EXISTS motherboard_serial VARCHAR",
-                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS cpu_id VARCHAR"
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS cpu_id VARCHAR",
+                    "ALTER TABLE devices ADD COLUMN IF NOT EXISTS device_type VARCHAR"
                 ]
                 
                 for column_sql in agent_columns:

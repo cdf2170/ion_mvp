@@ -140,6 +140,7 @@ class Device(Base):
     vlan = Column(String)
 
     # System information
+    device_type = Column(String)  # Device type (MacBook Pro, HP Spectre, etc.)
     os_version = Column(String)
     last_check_in = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(SQLEnum(DeviceStatusEnum), nullable=False, default=DeviceStatusEnum.UNKNOWN)

@@ -258,6 +258,7 @@ def get_devices(
             "ip_address": str(device.ip_address) if device.ip_address else None,
             "mac_address": device.mac_address,
             "vlan": device.vlan,
+            "device_type": getattr(device, 'device_type', None),
             "os_version": device.os_version,
             "last_check_in": device.last_check_in,
             "status": device.status,
@@ -277,9 +278,18 @@ def get_devices(
             user_groups = db.query(GroupMembership).filter(GroupMembership.cid == device.owner.cid).all()
             device_dict["groups"] = [f"{group.group_name} ({group.group_type.value})" for group in user_groups]
             
-            # Get policies (simplified - showing policy names that might apply)
+            # Get policies as Policy objects
             policies = db.query(Policy).filter(Policy.enabled == True).all()
-            device_dict["policies"] = [policy.name for policy in policies[:5]]  # Show first 5 active policies
+            device_dict["policies"] = [
+                {
+                    "id": policy.id,
+                    "name": policy.name,
+                    "description": policy.description,
+                    "policy_type": policy.policy_type.value,
+                    "severity": policy.severity.value,
+                    "enabled": policy.enabled
+                } for policy in policies[:5]  # Show first 5 active policies
+            ]
         else:
             device_dict["groups"] = []
             device_dict["policies"] = []
@@ -498,6 +508,7 @@ def get_device_detail(
         "ip_address": str(device.ip_address) if device.ip_address else None,
         "mac_address": device.mac_address,
         "vlan": device.vlan,
+        "device_type": getattr(device, 'device_type', None),
         "os_version": device.os_version,
         "last_check_in": device.last_check_in,
         "status": device.status,
@@ -517,9 +528,18 @@ def get_device_detail(
         user_groups = db.query(GroupMembership).filter(GroupMembership.cid == device.owner.cid).all()
         device_dict["groups"] = [f"{group.group_name} ({group.group_type.value})" for group in user_groups]
         
-        # Get policies (simplified - showing policy names that might apply)
+        # Get policies as Policy objects
         policies = db.query(Policy).filter(Policy.enabled == True).all()
-        device_dict["policies"] = [policy.name for policy in policies[:5]]  # Show first 5 active policies
+        device_dict["policies"] = [
+            {
+                "id": policy.id,
+                "name": policy.name,
+                "description": policy.description,
+                "policy_type": policy.policy_type.value,
+                "severity": policy.severity.value,
+                "enabled": policy.enabled
+            } for policy in policies[:5]  # Show first 5 active policies
+        ]
     else:
         device_dict["groups"] = []
         device_dict["policies"] = []
