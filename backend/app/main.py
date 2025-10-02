@@ -633,7 +633,7 @@ def create_app() -> FastAPI:
                 for column_sql in agent_columns:
                     try:
                         conn.execute(text(column_sql))
-                        results.append(f"✓ {column_sql}")
+                        results.append(f" {column_sql}")
                     except Exception as e:
                         results.append(f"✗ {column_sql} - {str(e)}")
                 

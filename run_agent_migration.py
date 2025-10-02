@@ -64,7 +64,7 @@ def run_migration():
             for column_sql in agent_columns:
                 try:
                     conn.execute(text(column_sql))
-                    print(f"  ✓ {column_sql}")
+                    print(f"   {column_sql}")
                 except Exception as e:
                     print(f"  ⚠ Warning: {column_sql} - {e}")
             
@@ -86,11 +86,11 @@ def run_migration():
             
             # Commit all changes
             conn.commit()
-            print("✅ Agent support migration completed successfully!")
+            print(" Agent support migration completed successfully!")
             return True
             
     except Exception as e:
-        print(f"❌ Migration failed: {e}")
+        print(f" Migration failed: {e}")
         return False
 
 if __name__ == "__main__":

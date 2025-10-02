@@ -265,12 +265,15 @@ def get_devices(
             "tags": sorted([{"id": tag.id, "tag": tag.tag} for tag in device.tags], key=lambda x: x["tag"].value) if device.tags else []
         }
         
-        # Add owner information (we always have the join now)
-        device_dict.update({
-            "owner_name": device.owner.full_name if hasattr(device, 'owner') and device.owner else None,
-            "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
-            "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
-        })
+        # Add owner information as sub-object (we always have the join now)
+        if hasattr(device, 'owner') and device.owner:
+            device_dict["owner"] = {
+                "name": device.owner.full_name,
+                "email": device.owner.email,
+                "department": device.owner.department
+            }
+        else:
+            device_dict["owner"] = None
         
         # Add groups and policies
         if hasattr(device, 'owner') and device.owner:
@@ -515,12 +518,15 @@ def get_device_detail(
         "tags": sorted([{"id": tag.id, "tag": tag.tag} for tag in device.tags], key=lambda x: x["tag"].value) if device.tags else []
     }
     
-    # Add owner information (we have the join now)
-    device_dict.update({
-        "owner_name": device.owner.full_name if hasattr(device, 'owner') and device.owner else None,
-        "owner_email": device.owner.email if hasattr(device, 'owner') and device.owner else None,
-        "owner_department": device.owner.department if hasattr(device, 'owner') and device.owner else None
-    })
+    # Add owner information as sub-object (we have the join now)
+    if hasattr(device, 'owner') and device.owner:
+        device_dict["owner"] = {
+            "name": device.owner.full_name,
+            "email": device.owner.email,
+            "department": device.owner.department
+        }
+    else:
+        device_dict["owner"] = None
     
     # Add groups and policies
     if hasattr(device, 'owner') and device.owner:

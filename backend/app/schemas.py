@@ -27,6 +27,22 @@ class DeviceTagSchema(BaseModel):
     tag: DeviceTagEnum = Field(..., description="Tag value")
 
 
+class OwnerSchema(BaseModel):
+    """
+    Device owner information schema.
+    
+    Attributes:
+        name: Name of the device owner
+        email: Email of the device owner
+        department: Department of the device owner
+    """
+    model_config = ConfigDict(from_attributes=True)
+    
+    name: Optional[str] = Field(None, description="Name of the device owner")
+    email: Optional[str] = Field(None, description="Email of the device owner")
+    department: Optional[str] = Field(None, description="Department of the device owner")
+
+
 class PolicySchema(BaseModel):
     """
     Policy schema for device/user policy information.
@@ -59,9 +75,7 @@ class DeviceSchema(BaseModel):
         last_seen: Last time device was seen/active
         compliant: Whether device meets compliance requirements
         owner_cid: Canonical Identity of the device owner
-        owner_name: Name of the device owner
-        owner_email: Email of the device owner
-        owner_department: Department of the device owner
+        owner: Owner information sub-object
         ip_address: Device IP address
         mac_address: Device MAC address
         vlan: VLAN identifier
@@ -80,9 +94,7 @@ class DeviceSchema(BaseModel):
     last_seen: datetime = Field(..., description="Last time device was seen/active")
     compliant: bool = Field(..., description="Whether device meets compliance requirements")
     owner_cid: UUID = Field(..., description="Canonical Identity of the device owner")
-    owner_name: Optional[str] = Field(None, description="Name of the device owner")
-    owner_email: Optional[str] = Field(None, description="Email of the device owner")
-    owner_department: Optional[str] = Field(None, description="Department of the device owner")
+    owner: Optional[OwnerSchema] = Field(None, description="Owner information")
     ip_address: Optional[str] = Field(None, description="Device IP address")
     mac_address: Optional[str] = Field(None, description="Device MAC address")
     vlan: Optional[str] = Field(None, description="VLAN identifier")

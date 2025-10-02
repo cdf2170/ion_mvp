@@ -1,6 +1,6 @@
 # Microsoft E5 Tenant Secure Integration Guide
 
-## 🔐 **ZERO HARDCODED SECRETS APPROACH**
+##  **ZERO HARDCODED SECRETS APPROACH**
 
 This guide shows you how to securely integrate your Microsoft E5 tenant without any credentials in your code or repository.
 
@@ -198,7 +198,7 @@ curl -X POST "https://your-app.railway.app/v1/microsoft/setup" \
 - Connection status monitoring
 - Sync operation tracking
 
-## **🚀 Available Endpoints**
+## ** Available Endpoints**
 
 ```
 POST /v1/microsoft/setup       # Setup E5 tenant connection
@@ -207,7 +207,7 @@ POST /v1/microsoft/sync        # Trigger data sync
 DELETE /v1/microsoft/disconnect # Remove connection
 ```
 
-## **📊 Data Sync Capabilities**
+## ** Data Sync Capabilities**
 
 - **Users**: Full profile, department, manager, status
 - **Groups**: Security groups, distribution lists, M365 groups
@@ -238,7 +238,7 @@ railway logs
 - Tenant ID format should be GUID
 - Client ID should be from your app registration
 
-## **🎯 Production Checklist**
+## ** Production Checklist**
 
 - [ ] App registration created in Azure AD
 - [ ] Application permissions granted and admin consent given
@@ -252,4 +252,4 @@ railway logs
 - [ ] Production connection established
 - [ ] Data sync tested
 
-Your Microsoft E5 tenant is now securely integrated with zero hardcoded secrets! 🎉
+Your Microsoft E5 tenant is now securely integrated with zero hardcoded secrets! 

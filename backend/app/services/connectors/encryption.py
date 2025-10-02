@@ -156,7 +156,7 @@ if __name__ == "__main__":
         decrypted = decrypt_credentials(encrypted)
         print(f"Decrypted: {decrypted}")
         
-        print("✅ Encryption test passed!" if decrypted == test_creds else "❌ Encryption test failed!")
+        print(" Encryption test passed!" if decrypted == test_creds else " Encryption test failed!")
     
     else:
         print("Usage:")

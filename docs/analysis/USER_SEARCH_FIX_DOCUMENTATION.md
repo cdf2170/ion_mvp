@@ -64,7 +64,7 @@ Applied the same fix to ensure consistency across all seeding scripts.
 
 ## Verification Results
 
-✅ **All Tests Passed**:
+ **All Tests Passed**:
 - **Name/Email Correlation**: 20/20 users have matching names and emails
 - **Search Functionality**: Users can be found by first name, last name, and email prefix
 - **Predefined Users**: Executive team and other predefined users remain intact
@@ -96,11 +96,11 @@ Now when users search for:
 Always ensure that related fields in test data are logically connected:
 
 ```python
-# ✅ GOOD: Consistent data
+#  GOOD: Consistent data
 full_name = fake.name()
 email = generate_email_from_name(full_name)
 
-# ❌ BAD: Disconnected data
+#  BAD: Disconnected data
 name = fake.name()
 email = fake.email()
 ```

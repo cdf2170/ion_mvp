@@ -52,26 +52,26 @@ fake = Faker()
 # Modern device types with realistic specifications
 MODERN_DEVICE_TYPES = {
     "laptops": [
-        {"type": "MacBook Pro 16\"", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"], "ram": ["16GB", "32GB", "64GB"], "storage": ["512GB", "1TB", "2TB", "4TB"]},
-        {"type": "MacBook Air 15\"", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"], "ram": ["8GB", "16GB", "24GB"], "storage": ["256GB", "512GB", "1TB", "2TB"]},
-        {"type": "ThinkPad X1 Carbon Gen 11", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"], "ram": ["16GB", "32GB"], "storage": ["512GB", "1TB", "2TB"]},
-        {"type": "ThinkPad P1 Gen 6", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"], "ram": ["32GB", "64GB"], "storage": ["1TB", "2TB", "4TB"]},
-        {"type": "Dell XPS 15 9530", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"], "ram": ["16GB", "32GB", "64GB"], "storage": ["512GB", "1TB", "2TB"]},
-        {"type": "HP Spectre x360 16", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"], "ram": ["16GB", "32GB"], "storage": ["512GB", "1TB", "2TB"]},
-        {"type": "Surface Laptop Studio 2", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"], "ram": ["16GB", "32GB", "64GB"], "storage": ["512GB", "1TB", "2TB"]},
+        {"type": "MacBook Pro 16\"", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]},
+        {"type": "MacBook Air 15\"", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]},
+        {"type": "ThinkPad X1 Carbon Gen 11", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]},
+        {"type": "ThinkPad P1 Gen 6", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"]},
+        {"type": "Dell XPS 15 9530", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]},
+        {"type": "HP Spectre x360 16", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]},
+        {"type": "Surface Laptop Studio 2", "os": ["Windows 11 Pro 23H2", "Windows 11 Enterprise"]},
     ],
     "desktops": [
-        {"type": "Mac Studio M2 Ultra", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"], "ram": ["64GB", "128GB"], "storage": ["1TB", "2TB", "4TB", "8TB"]},
-        {"type": "Mac Pro M2 Ultra", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"], "ram": ["64GB", "128GB", "192GB"], "storage": ["1TB", "2TB", "4TB", "8TB"]},
-        {"type": "Dell Precision 5820", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"], "ram": ["32GB", "64GB", "128GB"], "storage": ["1TB", "2TB", "4TB"]},
-        {"type": "HP Z8 G5", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"], "ram": ["64GB", "128GB", "256GB"], "storage": ["2TB", "4TB", "8TB"]},
+        {"type": "Mac Studio M2 Ultra", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]},
+        {"type": "Mac Pro M2 Ultra", "os": ["macOS 14.2 Sonoma", "macOS 13.6 Ventura"]},
+        {"type": "Dell Precision 5820", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"]},
+        {"type": "HP Z8 G5", "os": ["Windows 11 Pro 23H2", "Ubuntu 22.04 LTS"]},
     ],
     "mobile": [
-        {"type": "iPhone 15 Pro Max", "os": ["iOS 17.1", "iOS 17.0"], "ram": ["8GB"], "storage": ["256GB", "512GB", "1TB"]},
-        {"type": "iPhone 15 Pro", "os": ["iOS 17.1", "iOS 17.0"], "ram": ["8GB"], "storage": ["128GB", "256GB", "512GB", "1TB"]},
-        {"type": "iPad Pro 12.9\"", "os": ["iPadOS 17.1", "iPadOS 17.0"], "ram": ["8GB", "16GB"], "storage": ["256GB", "512GB", "1TB", "2TB"]},
-        {"type": "Samsung Galaxy S24 Ultra", "os": ["Android 14", "Android 13"], "ram": ["12GB"], "storage": ["256GB", "512GB", "1TB"]},
-        {"type": "Google Pixel 8 Pro", "os": ["Android 14", "Android 13"], "ram": ["12GB"], "storage": ["128GB", "256GB", "512GB", "1TB"]},
+        {"type": "iPhone 15 Pro Max", "os": ["iOS 17.1", "iOS 17.0"]},
+        {"type": "iPhone 15 Pro", "os": ["iOS 17.1", "iOS 17.0"]},
+        {"type": "iPad Pro 12.9\"", "os": ["iPadOS 17.1", "iPadOS 17.0"]},
+        {"type": "Samsung Galaxy S24 Ultra", "os": ["Android 14", "Android 13"]},
+        {"type": "Google Pixel 8 Pro", "os": ["Android 14", "Android 13"]},
     ]
 }
 
@@ -396,7 +396,7 @@ def create_enterprise_users(db: Session, count: int = 100) -> List[CanonicalIden
             created_managers[dept_name].append(f"{first_name} {last_name}")
     
     db.flush()  # Get IDs
-    print(f"✓ Created {len(users)} users")
+    print(f"Created {len(users)} users")
     return users
 
 def create_modern_devices(db: Session, users: List[CanonicalIdentity], count: int = 150) -> List[Device]:
@@ -415,8 +415,6 @@ def create_modern_devices(db: Session, users: List[CanonicalIdentity], count: in
         
         device_type = device_spec["type"]
         os_version = random.choice(device_spec["os"])
-        ram = random.choice(device_spec["ram"])
-        storage = random.choice(device_spec["storage"])
         
         # Create device name
         if category == "mobile":
@@ -430,7 +428,7 @@ def create_modern_devices(db: Session, users: List[CanonicalIdentity], count: in
         device = Device(
             name=device_name,
             device_type=device_type,
-            os_version=f"{device_type} - {os_version} ({ram}, {storage})",
+            os_version=os_version,
             owner_cid=user.cid,
             last_seen=fake.date_time_between(start_date='-7d', end_date='now', tzinfo=timezone.utc),
             last_check_in=fake.date_time_between(start_date='-24h', end_date='now', tzinfo=timezone.utc),
@@ -451,7 +449,7 @@ def create_modern_devices(db: Session, users: List[CanonicalIdentity], count: in
         devices.append(device)
     
     db.flush()  # Get IDs
-    print(f"✓ Created {len(devices)} devices")
+    print(f"Created {len(devices)} devices")
     return devices
 
 def create_device_tags(db: Session, devices: List[Device]):
@@ -472,7 +470,7 @@ def create_device_tags(db: Session, devices: List[Device]):
             db.add(tag)
             tag_count += 1
     
-    print(f"✓ Created {tag_count} device tags")
+    print(f"Created {tag_count} device tags")
 
 def create_enterprise_groups(db: Session, users: List[CanonicalIdentity]):
     """Create realistic enterprise group memberships."""
@@ -560,7 +558,7 @@ def create_enterprise_groups(db: Session, users: List[CanonicalIdentity]):
                 db.add(membership)
                 group_count += 1
     
-    print(f"✓ Created {group_count} group memberships")
+    print(f"Created {group_count} group memberships")
 
 def create_enterprise_policies(db: Session) -> List[Policy]:
     """Create enterprise-grade policies."""
@@ -581,7 +579,7 @@ def create_enterprise_policies(db: Session) -> List[Policy]:
         policies.append(policy)
     
     db.flush()  # Get IDs
-    print(f"✓ Created {len(policies)} policies")
+    print(f"Created {len(policies)} policies")
     return policies
 
 def create_api_connections(db: Session) -> List[APIConnection]:
@@ -626,7 +624,7 @@ def create_api_connections(db: Session) -> List[APIConnection]:
             )
             db.add(tag)
     
-    print(f"✓ Created {len(connections)} API connections")
+    print(f"Created {len(connections)} API connections")
     return connections
 
 def create_access_grants(db: Session, users: List[CanonicalIdentity], count: int = 200):
@@ -678,7 +676,7 @@ def create_access_grants(db: Session, users: List[CanonicalIdentity], count: int
         )
         db.add(grant)
     
-    print(f"✓ Created {count} access grants")
+    print(f"Created {count} access grants")
 
 def create_activity_history(db: Session, users: List[CanonicalIdentity], devices: List[Device], count: int = 300):
     """Create realistic activity history."""
@@ -725,7 +723,7 @@ def create_activity_history(db: Session, users: List[CanonicalIdentity], devices
         )
         db.add(activity)
     
-    print(f"✓ Created {count} activity history records")
+    print(f"Created {count} activity history records")
 
 def create_config_history(db: Session, users: List[CanonicalIdentity], devices: List[Device], policies: List[Policy], count: int = 150):
     """Create configuration change history."""
@@ -774,7 +772,7 @@ def create_config_history(db: Session, users: List[CanonicalIdentity], devices: 
         )
         db.add(config_change)
     
-    print(f"✓ Created {count} configuration history records")
+    print(f"Created {count} configuration history records")
 
 def create_api_sync_logs(db: Session, connections: List[APIConnection], count: int = 50):
     """Create API sync logs."""
@@ -807,11 +805,11 @@ def create_api_sync_logs(db: Session, connections: List[APIConnection], count: i
         )
         db.add(sync_log)
     
-    print(f"✓ Created {count} API sync logs")
+    print(f"Created {count} API sync logs")
 
 def seed_database():
     """Main seeding function."""
-    print("🌱 Starting modern database seeding...")
+    print("Starting modern database seeding...")
     print("=" * 60)
     
     # Get database session
@@ -819,7 +817,7 @@ def seed_database():
     
     try:
         # Clear existing data (in dependency order)
-        print("🧹 Clearing existing data...")
+        print("Clearing existing data...")
         db.query(APISyncLog).delete()
         db.query(APIConnectionTag).delete()
         db.query(APIConnection).delete()
@@ -836,52 +834,52 @@ def seed_database():
         db.query(Policy).delete()
         db.query(CanonicalIdentity).delete()
         db.commit()
-        print("✓ Existing data cleared")
+        print("Existing data cleared")
         
         # Create data in dependency order
-        print("\n👥 Creating enterprise users...")
+        print("\nCreating enterprise users...")
         users = create_enterprise_users(db, count=100)
         db.commit()
         
-        print("\n💻 Creating modern devices...")
+        print("\nCreating modern devices...")
         devices = create_modern_devices(db, users, count=150)
         db.commit()
         
-        print("\n🏷️ Creating device tags...")
+        print("\nCreating device tags...")
         create_device_tags(db, devices)
         db.commit()
         
-        print("\n👥 Creating enterprise groups...")
+        print("\nCreating enterprise groups...")
         create_enterprise_groups(db, users)
         db.commit()
         
-        print("\n📋 Creating enterprise policies...")
+        print("\nCreating enterprise policies...")
         policies = create_enterprise_policies(db)
         db.commit()
         
-        print("\n🔌 Creating API connections...")
+        print("\nCreating API connections...")
         connections = create_api_connections(db)
         db.commit()
         
-        print("\n🔐 Creating access grants...")
+        print("\nCreating access grants...")
         create_access_grants(db, users, count=200)
         db.commit()
         
-        print("\n📊 Creating activity history...")
+        print("\nCreating activity history...")
         create_activity_history(db, users, devices, count=300)
         db.commit()
         
-        print("\n📝 Creating configuration history...")
+        print("\nCreating configuration history...")
         create_config_history(db, users, devices, policies, count=150)
         db.commit()
         
-        print("\n🔄 Creating API sync logs...")
+        print("\nCreating API sync logs...")
         create_api_sync_logs(db, connections, count=50)
         db.commit()
         
         print("\n" + "=" * 60)
-        print("🎉 Modern database seeding completed successfully!")
-        print(f"📊 Summary:")
+        print("Modern database seeding completed successfully!")
+        print(f"Summary:")
         print(f"   • {len(users)} enterprise users")
         print(f"   • {len(devices)} modern devices")
         print(f"   • {len(policies)} enterprise policies")
@@ -893,7 +891,7 @@ def seed_database():
         print("=" * 60)
         
     except Exception as e:
-        print(f"❌ Error during seeding: {str(e)}")
+        print(f"Error during seeding: {str(e)}")
         db.rollback()
         raise
     finally:

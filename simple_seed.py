@@ -52,11 +52,11 @@ def simple_seed():
             db.add(user)
         
         db.commit()
-        print(f"✅ Successfully seeded {10} users")
+        print(f" Successfully seeded {10} users")
         
     except Exception as e:
         db.rollback()
-        print(f"❌ Seeding failed: {e}")
+        print(f" Seeding failed: {e}")
         raise
     finally:
         db.close()

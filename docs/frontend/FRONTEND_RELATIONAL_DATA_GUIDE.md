@@ -4,13 +4,13 @@
 
 This guide shows all the relational data available through our APIs. Your frontend can access fully populated objects with all related data in single API calls - no need for multiple requests to build complete views.
 
-## 🎯 Key Concept: "Copy & Paste" Development
+##  Key Concept: "Copy & Paste" Development
 
 Each API endpoint returns complete objects with all related data included. You can literally copy the response structure and use it directly in your frontend components.
 
 ---
 
-## 👥 User Management - Complete Relational Data
+##  User Management - Complete Relational Data
 
 ### Get User with All Related Data
 ```http
@@ -31,7 +31,7 @@ GET /users/{cid}
   "last_seen": "2024-01-15T10:30:00Z",
   "created_at": "2024-01-01T00:00:00Z",
   
-  // 🔗 ALL USER'S DEVICES with realistic corporate naming (no separate API call needed)
+  //  ALL USER'S DEVICES with realistic corporate naming (no separate API call needed)
   "devices": [
     {
       "id": "device-uuid-1",
@@ -67,7 +67,7 @@ GET /users/{cid}
     }
   ],
   
-  // 🔗 ALL GROUP MEMBERSHIPS with enhanced context (no separate API call needed)
+  //  ALL GROUP MEMBERSHIPS with enhanced context (no separate API call needed)
   "groups": [
     {
       "id": "group-1", 
@@ -99,7 +99,7 @@ GET /users/{cid}
     }
   ],
   
-  // 🔗 ALL EXTERNAL ACCOUNTS (no separate API call needed)
+  //  ALL EXTERNAL ACCOUNTS (no separate API call needed)
   "accounts": [
     {"id": "account-1", "service": "Slack", "status": "Active", "user_email": "john.doe@company.com"},
     {"id": "account-2", "service": "AWS", "status": "Active", "user_email": "john.doe@company.com"}
@@ -133,7 +133,7 @@ GET /users?page=1&page_size=50&department=Engineering&status=Active
 
 ---
 
-## 👥 Enhanced Group System - No More Generic "Groups"!
+##  Enhanced Group System - No More Generic "Groups"!
 
 **PROBLEM SOLVED**: Instead of generic "group" names, we now have **contextual, categorized groups** with full metadata:
 
@@ -166,7 +166,7 @@ GET /users?page=1&page_size=50&department=Engineering&status=Active
 
 ---
 
-## 💻 Device Management - Complete Relational Data
+##  Device Management - Complete Relational Data
 
 ### Get Device with Owner Information
 ```http
@@ -182,7 +182,7 @@ GET /devices/{device_id}
   "compliant": false,
   "last_seen": "2024-01-15T10:30:00Z",
   
-  // 🔗 OWNER INFORMATION (no separate user lookup needed)
+  //  OWNER INFORMATION (no separate user lookup needed)
   // This is WHY owner info matters - you'd never know who owns "ASSET-00847291"!
   "owner_cid": "123e4567-e89b-12d3-a456-426614174000",
   "owner_name": "Sarah Johnson",               // Who actually uses this device
@@ -196,7 +196,7 @@ GET /devices/{device_id}
   "os_version": "Windows 11 Pro 23H2",        // Detailed OS versions
   "last_check_in": "2024-01-15T10:25:00Z",
   
-  // 🔗 ALL DEVICE TAGS with context (no separate API call needed)
+  //  ALL DEVICE TAGS with context (no separate API call needed)
   "tags": [
     {"id": "tag-1", "tag": "BYOD"},            // Bring Your Own Device
     {"id": "tag-2", "tag": "Remote"},          // Location-based
@@ -232,7 +232,7 @@ GET /devices?page=1&page_size=50&compliant=false&status=Connected&owner_departme
 }
 ```
 
-### 🏢 Realistic Corporate Device Naming
+###  Realistic Corporate Device Naming
 
 **Why Owner Info Matters**: Our seed data now generates realistic corporate device names that demonstrate why owner information is crucial:
 
@@ -268,7 +268,7 @@ GET /devices?page=1&page_size=50&compliant=false&status=Connected&owner_departme
 
 ---
 
-## 📋 Policy Management - Complete CRUD
+##  Policy Management - Complete CRUD
 
 ### List All Policies
 ```http
@@ -308,7 +308,7 @@ PUT /policies/{policy_id}
 
 ---
 
-## 📊 History & Activity - Complete Context
+##  History & Activity - Complete Context
 
 ### Configuration History
 ```http
@@ -371,7 +371,7 @@ GET /history/activity?page=1&page_size=50&user_cid={cid}&activity_type=Login
 
 ---
 
-## 🔌 API Management - External System Integration
+##  API Management - External System Integration
 
 ### List API Connections
 ```http
@@ -410,7 +410,7 @@ GET /apis?page=1&page_size=50&status=Connected&provider=Okta
 
 ---
 
-## 🎯 Frontend Development Patterns
+##  Frontend Development Patterns
 
 ### 1. **User Dashboard Component**
 ```javascript
@@ -442,7 +442,7 @@ const activities = await fetch(`/api/history/activity?user_cid=${userId}`);
 
 ---
 
-## 🔍 Available Filters & Search
+##  Available Filters & Search
 
 ### User Endpoints
 - Filter by: `department`, `status`, `role`, `location`
@@ -466,16 +466,16 @@ const activities = await fetch(`/api/history/activity?user_cid=${userId}`);
 
 ---
 
-## ✅ Summary: What Your Frontend Developer Can Do
+##  Summary: What Your Frontend Developer Can Do
 
 **YES, we have comprehensive relational data!** Your frontend developer can:
 
-1. ✅ **Copy & Paste User Management** - Get users with all devices, groups, accounts
-2. ✅ **Copy & Paste Device Management** - Get devices with full owner information  
-3. ✅ **Copy & Paste Policy Management** - Full CRUD with history tracking
-4. ✅ **Copy & Paste History Views** - Activity and config history with full context
-5. ✅ **Copy & Paste API Management** - Manage external system integrations
+1.  **Copy & Paste User Management** - Get users with all devices, groups, accounts
+2.  **Copy & Paste Device Management** - Get devices with full owner information  
+3.  **Copy & Paste Policy Management** - Full CRUD with history tracking
+4.  **Copy & Paste History Views** - Activity and config history with full context
+5.  **Copy & Paste API Management** - Manage external system integrations
 
 **All data is relational and returned in single API calls - no need for multiple requests to build complete views.**
 
-The backend is ready for frontend development! 🚀
+The backend is ready for frontend development! 

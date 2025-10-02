@@ -20,11 +20,11 @@ from backend.app.services.connectors.encryption import generate_encryption_key, 
 def setup_microsoft_e5():
     """Interactive setup for Microsoft E5 tenant integration."""
     
-    print("🔐 Microsoft E5 Tenant Secure Setup")
+    print(" Microsoft E5 Tenant Secure Setup")
     print("=" * 50)
     
     # Step 1: Collect credentials
-    print("\n📋 Step 1: Azure AD App Registration Details")
+    print("\n Step 1: Azure AD App Registration Details")
     print("(Get these from Azure Portal > Azure AD > App registrations)")
     
     tenant_id = input("Enter your Tenant ID (GUID): ").strip()
@@ -32,7 +32,7 @@ def setup_microsoft_e5():
     client_secret = input("Enter your Client Secret: ").strip()
     
     if not all([tenant_id, client_id, client_secret]):
-        print("❌ All fields are required!")
+        print(" All fields are required!")
         return False
     
     # Step 2: Generate encryption key if needed
@@ -44,7 +44,7 @@ def setup_microsoft_e5():
     else:
         encryption_key = generate_encryption_key()
         print(f"Generated new encryption key: {encryption_key}")
-        print("⚠️  SAVE THIS KEY - you'll need it for production!")
+        print("⚠  SAVE THIS KEY - you'll need it for production!")
     
     # Step 3: Test connection
     print("\n🧪 Step 3: Testing Connection")
@@ -72,7 +72,7 @@ def setup_microsoft_e5():
         token_info = response.json()
         access_token = token_info['access_token']
         
-        print("  ✅ OAuth2 token acquired successfully")
+        print("   OAuth2 token acquired successfully")
         
         # Test Graph API call
         print("  Testing Microsoft Graph API call...")
@@ -92,10 +92,10 @@ def setup_microsoft_e5():
         org_info = org_data.get('value', [{}])[0]
         org_name = org_info.get('displayName', 'Unknown Organization')
         
-        print(f"  ✅ Connected to: {org_name}")
+        print(f"   Connected to: {org_name}")
         
     except requests.exceptions.RequestException as e:
-        print(f"  ❌ Connection test failed: {e}")
+        print(f"   Connection test failed: {e}")
         print("\nPlease check:")
         print("  - Tenant ID is correct")
         print("  - Client ID is correct") 
@@ -104,7 +104,7 @@ def setup_microsoft_e5():
         return False
     
     # Step 4: Create environment files
-    print("\n📁 Step 4: Creating Environment Files")
+    print("\n Step 4: Creating Environment Files")
     
     # Create .env for local development
     env_content = f"""# Microsoft E5 Tenant (Development)
@@ -126,7 +126,7 @@ DEBUG=true
     with open('.env', 'w') as f:
         f.write(env_content)
     
-    print("  ✅ Created .env file for local development")
+    print("   Created .env file for local development")
     
     # Create Railway deployment commands
     railway_commands = f"""#!/bin/bash
@@ -144,7 +144,7 @@ railway variables set MICROSOFT_CLIENT_SECRET="{client_secret}"
 # railway variables set MASTER_ENCRYPTION_PASSWORD="your-super-secure-master-password"
 # railway variables set ENCRYPTION_SALT="your-unique-salt-value"
 
-echo "✅ Railway environment variables configured!"
+echo " Railway environment variables configured!"
 echo "Now run: railway up"
 """
     
@@ -152,7 +152,7 @@ echo "Now run: railway up"
         f.write(railway_commands)
     
     os.chmod('setup_railway_microsoft.sh', 0o755)
-    print("  ✅ Created setup_railway_microsoft.sh for production deployment")
+    print("   Created setup_railway_microsoft.sh for production deployment")
     
     # Step 5: Update .gitignore
     gitignore_entries = ['.env', '*.env', '.env.*']
@@ -171,15 +171,15 @@ echo "Now run: railway up"
                 f.write('\n# Environment files\n')
                 for entry in new_entries:
                     f.write(f'{entry}\n')
-            print("  ✅ Updated .gitignore to exclude environment files")
+            print("   Updated .gitignore to exclude environment files")
     
     # Step 6: Success summary
-    print("\n🎉 Setup Complete!")
+    print("\n Setup Complete!")
     print("=" * 50)
     print(f"Organization: {org_name}")
     print(f"Tenant ID: {tenant_id}")
     print(f"Client ID: {client_id}")
-    print("\n📋 Next Steps:")
+    print("\n Next Steps:")
     print("1. Start local server: python -m uvicorn backend.app.main:app --reload")
     print("2. Test connection: curl -H 'Authorization: Bearer token 21700' http://localhost:8000/v1/microsoft/status")
     print("3. Deploy to Railway: ./setup_railway_microsoft.sh && railway up")
@@ -207,15 +207,15 @@ def main():
     try:
         success = setup_microsoft_e5()
         if success:
-            print("\n✅ Microsoft E5 tenant setup completed successfully!")
+            print("\n Microsoft E5 tenant setup completed successfully!")
         else:
-            print("\n❌ Setup failed. Please check the errors above and try again.")
+            print("\n Setup failed. Please check the errors above and try again.")
             sys.exit(1)
     except KeyboardInterrupt:
-        print("\n\n⚠️  Setup cancelled by user.")
+        print("\n\n⚠  Setup cancelled by user.")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Unexpected error: {e}")
+        print(f"\n Unexpected error: {e}")
         sys.exit(1)
 
 

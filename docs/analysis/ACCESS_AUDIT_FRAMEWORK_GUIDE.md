@@ -252,7 +252,7 @@ GET /v1/access/compliance/PCI_DSS
 GET /v1/access/compliance/GDPR
 ```
 
-## 🛡️ Cryptographic Integrity
+##  Cryptographic Integrity
 
 ### **How It Works**
 
@@ -279,7 +279,7 @@ Every API response includes integrity status showing:
 - Signature verification status
 - Last integrity check timestamp
 
-## 📋 Enterprise Access Types
+##  Enterprise Access Types
 
 ### **System Access**
 - Production servers and environments
